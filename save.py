@@ -4,13 +4,13 @@ import sys
 root = Tk()
 root.resizable(0, 0)
 
-rows = 5
-cols = 5
+rows = 100
+cols = 100
 
 pixelVirtual = PhotoImage( width = 1, height = 1 )
 
 # 1. Не ленись дописывать названия. BTN_S - и save и size подходит
-BTN_SIZE = 70
+BTN_SIZE = 1
 field = []
 
 # 2. Состояния должно быть 2, вода это не состояние клетки, на неё должно быть нельзя переключиться просто так.
@@ -39,7 +39,7 @@ def click(c, i, j):
 
         # 6. Это лишнее, см пункт 3
         if field[i][j].cell_status == 2:
-            for b in range(rows + cols):
+            for b in range((rows + cols)*2):
                 parse()
 
     return r
@@ -68,11 +68,10 @@ def CreateField():
             stat = f.read(1)
             if stat == '' or int(stat) > 2:
                 stat = '0'
-            cell.cell_status = int(stat)
+            cell.cell_status = 0
 
             # СМ. Внизу
             cell['background'] = status_clr[cell.cell_status]
-            color = '#FFFF00'
 
             cell.grid( row = i, column = j, sticky = 'nsew' )
             cell.bind(
@@ -81,7 +80,7 @@ def CreateField():
             )
             field[i].append( cell )
     f.close()
-    SaveBut.grid(row = rows,column = 0, columnspan = 5 ,sticky = 'nsew')
+    SaveBut.grid(row = rows,column = 0, columnspan = cols ,sticky = 'nsew')
 
     return field
 def save():
