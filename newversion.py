@@ -3,13 +3,13 @@ import sys
 
 FPS = 30
 
-rows = 100
-cols = 100
+rows = 15
+cols = 15
 pad = 1
 
-BTN_SIZE = 1
+BTN_SIZE = 35
 WIDTH = BTN_SIZE * cols + pad * (cols-1)
-HEIGHT =  BTN_SIZE * (rows+1) + pad * cols
+HEIGHT =  BTN_SIZE * rows + pad * cols + 90 + pad
 
 # Задаем цвета
 WHITE = (255, 255, 255)
@@ -39,24 +39,42 @@ def CreateField():
             stat = f.read(1)
             if stat == '' or int(stat) > 2:
                 stat = '0'
-            cell = Cell(screen,0, i * BTN_SIZE + pad * i, j * BTN_SIZE + pad * j,i,j)
+            cell = Cell(screen,int(stat), i * (BTN_SIZE + pad), j * (BTN_SIZE + pad),i,j)
             field[i].append( cell )
     f.close()
 def water(i,j):
     global field
+    if field[i][j].cell_status != 2:
+        return
     for k in border:
         newi = i + k[0]
         newj = j + k[1]
-        if not(0 > newi or newi >= rows or 0 > newj or newj >= cols) and not field[newi][newj].cell_status == 1:
+        in_field = not(0 > newi or newi >= rows or 0 > newj or newj >= cols)
+        if in_field and not field[newi][newj].cell_status == 1:
             field[newi][newj].cell_status = 2
 def parse():
     global field
-    # 7. Не понял зачем выносить функцию в отдельнуб переменную
-    funk = water
     for ii in range(rows):
         for jj in range(cols):
             if field[ii][jj].cell_status == 2:
-                funk(ii,jj)
+                water(ii,jj)
+    ii = 0
+    jj = 0
+    for ii in range(rows):
+        for jj in range(cols):
+            if field[rows-1-ii][cols-1-jj].cell_status == 2:
+                water(rows-1-ii,cols-1-jj)
+def save():
+    global field
+    f = open('save.txt', 'w')
+    for i in field:
+        for j in i:
+            f.write(str(j.cell_status))
+    f.close()
+    sys.exit()
+def clear():
+    for i in Cell_sprites:
+        i.fill(0)
 
 font_name = pg.font.match_font('arial')
 def draw_text(surf, text, size, x, y, color):
@@ -66,13 +84,39 @@ def draw_text(surf, text, size, x, y, color):
     text_rect.midtop = (x, y)
     surf.blit(text_surface, text_rect)
 
-def create_button(surface,x,y,w,h,color):
-    but_surf = pg.Surface((w,h))
-    but_surf.fill(color)
-    but_rect = but_surf.get_rect()
-    but_rect.midtop = (x , y)
-    draw_text(but_surf,'Save & exit', 26,w//2,5,BLACK)
-    surface.blit(but_surf,but_rect)
+
+class Button(pg.sprite.Sprite):
+    def __init__(self,surface,x,y,w,h,color, text, command):
+        pg.sprite.Sprite.__init__(self)
+        self.color = color
+        self.command = command
+        self.text = text
+        self.image = pg.Surface((w,h))
+        self.image.fill(self.color)
+        self.rect = self.image.get_rect()
+        self.coords = (x,y)
+        self.rect.midtop = self.coords
+
+        draw_text(self.image,text, 26,w//2,5,BLACK)
+
+        all_sprites.add(self)
+        Button_sprites.add(self)
+
+    def update(self,was_click):
+        if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
+            self.command()
+        self.image.fill(self.color)
+        self.rect.midtop = self.coords
+
+        pressed = pg.mouse.get_pressed()
+        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()):
+            self.rect.x += 2
+            self.rect.y += 2
+            self.image.fill(WHITE)
+        draw_text(self.image,self.text, 26,self.rect.width//2,5,BLACK)
+    def draw(self):
+        screen.blit(self.image, self.rect)
+
 
 class Cell(pg.sprite.Sprite):
     def __init__(self, surface,status,x,y,i,j):
@@ -85,21 +129,28 @@ class Cell(pg.sprite.Sprite):
         self.rect.y = y
         self.i = i
         self.j = j
+
         all_sprites.add(self)
+        Cell_sprites.add(self)
     def update(self, was_click):
         if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
             self.cell_status = (self.cell_status + 1)%3
             self.image.fill(status_clr[self.cell_status])
             if self.cell_status == 2:
                 water(self.i,self.j)
-                for i in range((rows+cols)*2):
-                    parse()
-
+        self.image.fill(status_clr[self.cell_status])
+    def fill(self, stat):
+        self.cell_status = stat
         self.image.fill(status_clr[self.cell_status])
 
-
 all_sprites = pg.sprite.Group()
+Button_sprites = pg.sprite.Group()
+Cell_sprites = pg.sprite.Group()
+
+
 CreateField()
+SaveBut = Button(screen,WIDTH//2, HEIGHT-45, WIDTH,45, (150,150,150),'Save & Exit',save)
+ClrBut =  Button(screen,WIDTH//2, HEIGHT-90-pad, WIDTH,45, (150,150,150), 'Clear', clear)
 # Цикл игры
 running = True
 while running:
@@ -111,15 +162,16 @@ while running:
         # check for closing window
         if event.type == pg.QUIT:
             running = False
-        if event.type == pg.MOUSEBUTTONUP:
+        if event.type == pg.MOUSEBUTTONUP and event.button == 1:
             was_click = True
 
+
     # Обновление
+    parse()
     all_sprites.update(was_click)
     # Рендеринг
     screen.fill(BLACK)
     all_sprites.draw(screen)
-    create_button(screen,WIDTH//2, HEIGHT-BTN_SIZE, WIDTH,BTN_SIZE * 1.5, (150,150,150))
     # После отрисовки всего, переворачиваем экран
     pg.display.flip()
 
