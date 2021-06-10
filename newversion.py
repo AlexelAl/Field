@@ -3,11 +3,11 @@ import sys
 
 FPS = 30
 
-rows = 15
-cols = 15
+rows = 100
+cols = 100
 pad = 1
 
-BTN_SIZE = 35
+BTN_SIZE = 7
 WIDTH = BTN_SIZE * cols + pad * (cols-1)
 HEIGHT =  BTN_SIZE * rows + pad * cols + 90 + pad
 
@@ -149,7 +149,7 @@ Cell_sprites = pg.sprite.Group()
 
 
 CreateField()
-SaveBut = Button(screen,WIDTH//2, HEIGHT-45, WIDTH,45, (150,150,150),'Save & Exit',save)
+SaveBut = Button(screen,WIDTH//2, HEIGHT-45, WIDTH,45, (150,150,150),'Save and exit',save)
 ClrBut =  Button(screen,WIDTH//2, HEIGHT-90-pad, WIDTH,45, (150,150,150), 'Clear', clear)
 # Цикл игры
 running = True
