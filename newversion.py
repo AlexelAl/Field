@@ -1,26 +1,36 @@
 import pygame  as pg
 import sys
+from os import path
+
+img_dir = path.join(path.dirname(__file__), 'assets')
 
 FPS = 30
 
-rows = 100
-cols = 100
-pad = 1
+# Если это константы, то большими буквами ---Сделал----
+ROWS = 15
+COLS = 15
+PAD = 1
 
-BTN_SIZE = 7
-WIDTH = BTN_SIZE * cols + pad * (cols-1)
-HEIGHT =  BTN_SIZE * rows + pad * cols + 90 + pad
+
+BTN_SIZE = 30
+WIDTH = BTN_SIZE * COLS + PAD * COLS + 90
+HEIGHT =  BTN_SIZE * ROWS + PAD * COLS + 90 + PAD
 
 # Задаем цвета
 WHITE = (255, 255, 255)
+GREY = (150,150,150)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
+CHOOSEN_STATE = 0
+
+
 field = []
 status_clr = [WHITE, BLACK, BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
+
 
 # Создаем игру и окно
 pg.init()
@@ -29,19 +39,27 @@ screen = pg.display.set_mode((WIDTH , HEIGHT))
 pg.display.set_caption("My Game")
 clock = pg.time.Clock()
 
+# Давай называть однообразно - все с маленькой. С большой обынчно называю классы
+# ---------Сделано---------
+all_sprites = pg.sprite.Group()
+button_sprites = pg.sprite.Group()
+cell_sprites = pg.sprite.Group()
+select_sprites = pg.sprite.Group()
 
 def CreateField():
     global field
     f = open('save.txt', 'r')
-    for i in range(rows):
+    for i in range(ROWS):
         field.append([])
-        for j in range(cols):
+        for j in range(COLS):
             stat = f.read(1)
             if stat == '' or int(stat) > 2:
                 stat = '0'
-            cell = Cell(screen,int(stat), i * (BTN_SIZE + pad), j * (BTN_SIZE + pad),i,j)
+
+            cell = Cell( screen, int( stat ), i * ( BTN_SIZE + PAD ), j * (BTN_SIZE + PAD), i, j )
             field[i].append( cell )
     f.close()
+
 def water(i,j):
     global field
     if field[i][j].cell_status != 2:
@@ -49,21 +67,26 @@ def water(i,j):
     for k in border:
         newi = i + k[0]
         newj = j + k[1]
-        in_field = not(0 > newi or newi >= rows or 0 > newj or newj >= cols)
+        in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
         if in_field and not field[newi][newj].cell_status == 1:
             field[newi][newj].cell_status = 2
+
 def parse():
     global field
-    for ii in range(rows):
-        for jj in range(cols):
+    for ii in range(ROWS):
+        for jj in range(COLS):
             if field[ii][jj].cell_status == 2:
                 water(ii,jj)
+                break
+
     ii = 0
     jj = 0
-    for ii in range(rows):
-        for jj in range(cols):
-            if field[rows-1-ii][cols-1-jj].cell_status == 2:
-                water(rows-1-ii,cols-1-jj)
+    for ii in range(ROWS):
+        for jj in range(COLS):
+            if field[ROWS-1-ii][COLS-1-jj].cell_status == 2:
+                water(ROWS-1-ii,COLS-1-jj)
+                break
+
 def save():
     global field
     f = open('save.txt', 'w')
@@ -72,10 +95,12 @@ def save():
             f.write(str(j.cell_status))
     f.close()
     sys.exit()
+
 def clear():
-    for i in Cell_sprites:
+    for i in cell_sprites:
         i.fill(0)
 
+# Перенес в начало ---вернул сюда, оно только для draw_text нужно---
 font_name = pg.font.match_font('arial')
 def draw_text(surf, text, size, x, y, color):
     font = pg.font.Font(font_name, size)
@@ -84,44 +109,78 @@ def draw_text(surf, text, size, x, y, color):
     text_rect.midtop = (x, y)
     surf.blit(text_surface, text_rect)
 
+class SelectButton(pg.sprite.Sprite):
+    def __init__(self,x,y,img_name,state):
+        pg.sprite.Sprite.__init__(self)
+
+        self.unselected_img = pg.image.load(path.join(img_dir, img_name)).convert()
+        self.image = self.unselected_img
+
+        self.rect = self.image.get_rect()
+        self.rect.midtop = (x,y)
+
+        self.selected = False
+        self.state = state
+
+        all_sprites.add(self)
+        select_sprites.add(self)
+
+    def update(self,was_click):
+        global select_cap_x,select_cap_y
+        if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
+            self.select_me()
+            select_cap_x =  self.rect.x
+            select_cap_y = self.rect.y
+    def select_me(self):
+        global CHOOSEN_STATE
+        self.unselect_all()
+        self.selected = True
+        CHOOSEN_STATE = self.state
+    def unselect_all(self):
+        for i in select_sprites:
+            i.selected = False
+
+
 
 class Button(pg.sprite.Sprite):
-    def __init__(self,surface,x,y,w,h,color, text, command):
+    def __init__(self, surface, x, y, w, h, color, text, command):
         pg.sprite.Sprite.__init__(self)
         self.color = color
         self.command = command
         self.text = text
-        self.image = pg.Surface((w,h))
+        self.image = pg.Surface((w, h))
         self.image.fill(self.color)
         self.rect = self.image.get_rect()
-        self.coords = (x,y)
+        self.coords = (x, y)
         self.rect.midtop = self.coords
 
-        draw_text(self.image,text, 26,w//2,5,BLACK)
+        draw_text(self.image, text, 26, w//2, 5, BLACK)
 
         all_sprites.add(self)
-        Button_sprites.add(self)
+        button_sprites.add(self)
 
     def update(self,was_click):
+        pressed = pg.mouse.get_pressed()
         if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
             self.command()
         self.image.fill(self.color)
         self.rect.midtop = self.coords
 
-        pressed = pg.mouse.get_pressed()
         if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()):
             self.rect.x += 2
             self.rect.y += 2
             self.image.fill(WHITE)
-        draw_text(self.image,self.text, 26,self.rect.width//2,5,BLACK)
-    def draw(self):
-        screen.blit(self.image, self.rect)
+        draw_text(self.image, self.text, 26, self.rect.width//2, 5, BLACK)
 
 
 class Cell(pg.sprite.Sprite):
-    def __init__(self, surface,status,x,y,i,j):
+    # Можно упростить конструктор, передвая только i, j
+    # А x, y рассчитывать уже тут. Один фиг по формуле рассчитываешь
+    def __init__(self, surface, status, x, y, i, j):
         pg.sprite.Sprite.__init__(self)
-        self.cell_status = status                            # 0 - empty
+
+        # Мне кажется можно оставить просто слово status мы же и так в Cell ---Можно, но сеll_status
+        self.cell_status = status                            # 0 - empty        Часто упоминается,и много менять
         self.image = pg.Surface((BTN_SIZE,BTN_SIZE))         # 1 - wall
         self.image.fill(status_clr[self.cell_status])        # 2 - water
         self.rect = self.image.get_rect()
@@ -129,28 +188,50 @@ class Cell(pg.sprite.Sprite):
         self.rect.y = y
         self.i = i
         self.j = j
+        self.click_indx = False
 
         all_sprites.add(self)
-        Cell_sprites.add(self)
-    def update(self, was_click):
-        if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
-            self.cell_status = (self.cell_status + 1)%3
-            self.image.fill(status_clr[self.cell_status])
+        cell_sprites.add(self)
+    def update(self,was_click):
+        pressed = pg.mouse.get_pressed()
+        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx:
+            # Эммм, кажется ниже есть метод для этого) ----Тебе кажется----
+            self.on_click()
             if self.cell_status == 2:
-                water(self.i,self.j)
+                water(self.i, self.j)
         self.image.fill(status_clr[self.cell_status])
-    def fill(self, stat):
-        self.cell_status = stat
+    def on_click(self, color = None):
+        self.fill(CHOOSEN_STATE)
+        self.click_indx = True
+
+    def fill(self, state):
+        self.cell_status = state
         self.image.fill(status_clr[self.cell_status])
 
-all_sprites = pg.sprite.Group()
-Button_sprites = pg.sprite.Group()
-Cell_sprites = pg.sprite.Group()
+# Переснес в начало --- Зачем? ------
+# all_sprites = pg.sprite.Group()
+# Button_sprites = pg.sprite.Group()
+# Cell_sprites = pg.sprite.Group()
+
+select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
+select_cap_img.set_colorkey(WHITE)
+select_cap_x = WIDTH + 100
+select_cap_y = HEIGHT + 100
 
 
 CreateField()
-SaveBut = Button(screen,WIDTH//2, HEIGHT-45, WIDTH,45, (150,150,150),'Save and exit',save)
-ClrBut =  Button(screen,WIDTH//2, HEIGHT-90-pad, WIDTH,45, (150,150,150), 'Clear', clear)
+SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45, WIDTH-90-PAD, 45, GREY, 'Save & Exit', save)
+ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD, WIDTH-90-PAD, 45, GREY, 'Clear', clear)
+
+SideBar = pg.Surface((90,HEIGHT))
+SideBar.fill(GREY)
+
+#self,x,y,img_name,state
+EmptySelect = SelectButton(WIDTH-45,2,'select_empty.png',0)
+WallSelect = SelectButton(WIDTH-45,39,'select_wall.png' ,1)
+WaterSelect = SelectButton(WIDTH-45,78,'select_water.png',2)
+
+
 # Цикл игры
 running = True
 while running:
@@ -164,15 +245,35 @@ while running:
             running = False
         if event.type == pg.MOUSEBUTTONUP and event.button == 1:
             was_click = True
+            for i in cell_sprites:
+                i.click_indx = False
 
 
     # Обновление
     parse()
     all_sprites.update(was_click)
+
     # Рендеринг
     screen.fill(BLACK)
+    screen.blit(SideBar,(WIDTH-90,0))
+
     all_sprites.draw(screen)
+    screen.blit(select_cap_img,(select_cap_x,select_cap_y))
     # После отрисовки всего, переворачиваем экран
     pg.display.flip()
 
 pg.quit()
+
+# Глобальные комментарии
+# 1. Сделай так, чтоб не перключалось на воду просто так. Клетка должна переключаться только на пусто, стену
+     # -------------Сделано------------------
+# 2. Вода должна разливаться только по отдельной кнопке
+    # -------------Сделано------------------
+# ?3. Получится ли реальзовать такое: Чтобы я зажал кнопку и например повел вниз и все клетки по пути меняют статус( типо рисование )
+    #---------------Сделано-------------------
+# ?4. добавь задержку в распростронении воды, чтоб это было красиво
+    # -------------В процессе------------------
+
+
+#В СЛЕДУЮЩЕМ ОБНОВЛЕНИИ:
+#----Красивое распростронение воды
