@@ -3,6 +3,7 @@ import sys
 
 FPS = 30
 
+# Если это константы, то большими буквами
 rows = 15
 cols = 15
 pad = 1
@@ -17,10 +18,12 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+font_name = pg.font.match_font('arial')
 
 field = []
 status_clr = [WHITE, BLACK, BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
+
 
 # Создаем игру и окно
 pg.init()
@@ -29,6 +32,10 @@ screen = pg.display.set_mode((WIDTH , HEIGHT))
 pg.display.set_caption("My Game")
 clock = pg.time.Clock()
 
+# Давай называть однообразно - все с маленькой. С большой обынчно называю классы
+all_sprites = pg.sprite.Group()
+Button_sprites = pg.sprite.Group()
+Cell_sprites = pg.sprite.Group()
 
 def CreateField():
     global field
@@ -39,9 +46,11 @@ def CreateField():
             stat = f.read(1)
             if stat == '' or int(stat) > 2:
                 stat = '0'
-            cell = Cell(screen,int(stat), i * (BTN_SIZE + pad), j * (BTN_SIZE + pad),i,j)
+
+            cell = Cell( screen, int( stat ), i * ( BTN_SIZE + pad ), j * (BTN_SIZE + pad), i, j )
             field[i].append( cell )
     f.close()
+
 def water(i,j):
     global field
     if field[i][j].cell_status != 2:
@@ -52,6 +61,7 @@ def water(i,j):
         in_field = not(0 > newi or newi >= rows or 0 > newj or newj >= cols)
         if in_field and not field[newi][newj].cell_status == 1:
             field[newi][newj].cell_status = 2
+
 def parse():
     global field
     for ii in range(rows):
@@ -64,6 +74,7 @@ def parse():
         for jj in range(cols):
             if field[rows-1-ii][cols-1-jj].cell_status == 2:
                 water(rows-1-ii,cols-1-jj)
+
 def save():
     global field
     f = open('save.txt', 'w')
@@ -72,11 +83,13 @@ def save():
             f.write(str(j.cell_status))
     f.close()
     sys.exit()
+
 def clear():
     for i in Cell_sprites:
         i.fill(0)
 
-font_name = pg.font.match_font('arial')
+# Перенес в начало
+# font_name = pg.font.match_font('arial')
 def draw_text(surf, text, size, x, y, color):
     font = pg.font.Font(font_name, size)
     text_surface = font.render(text, True, color)
@@ -86,23 +99,23 @@ def draw_text(surf, text, size, x, y, color):
 
 
 class Button(pg.sprite.Sprite):
-    def __init__(self,surface,x,y,w,h,color, text, command):
+    def __init__(self, surface, x, y, w, h, color, text, command):
         pg.sprite.Sprite.__init__(self)
         self.color = color
         self.command = command
         self.text = text
-        self.image = pg.Surface((w,h))
+        self.image = pg.Surface((w, h))
         self.image.fill(self.color)
         self.rect = self.image.get_rect()
-        self.coords = (x,y)
+        self.coords = (x, y)
         self.rect.midtop = self.coords
 
-        draw_text(self.image,text, 26,w//2,5,BLACK)
+        draw_text(self.image, text, 26, w//2, 5, BLACK)
 
         all_sprites.add(self)
         Button_sprites.add(self)
 
-    def update(self,was_click):
+    def update(self, was_click):
         if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
             self.command()
         self.image.fill(self.color)
@@ -113,14 +126,18 @@ class Button(pg.sprite.Sprite):
             self.rect.x += 2
             self.rect.y += 2
             self.image.fill(WHITE)
-        draw_text(self.image,self.text, 26,self.rect.width//2,5,BLACK)
+        draw_text(self.image, self.text, 26, self.rect.width//2, 5, BLACK)
     def draw(self):
         screen.blit(self.image, self.rect)
 
 
 class Cell(pg.sprite.Sprite):
-    def __init__(self, surface,status,x,y,i,j):
+    # Можно упростить конструктор, передвая только i, j
+    # А x, y рассчитывать уже тут. Один фиг по формуле рассчитываешь
+    def __init__(self, surface, status, x, y, i, j):
         pg.sprite.Sprite.__init__(self)
+
+        # Мне кажется можно оставить просто слово status мы же и так в Cell
         self.cell_status = status                            # 0 - empty
         self.image = pg.Surface((BTN_SIZE,BTN_SIZE))         # 1 - wall
         self.image.fill(status_clr[self.cell_status])        # 2 - water
@@ -134,23 +151,29 @@ class Cell(pg.sprite.Sprite):
         Cell_sprites.add(self)
     def update(self, was_click):
         if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
-            self.cell_status = (self.cell_status + 1)%3
+
+            # Эммм, кажется ниже есть метод для этого)
+            self.cell_status = (self.cell_status + 1) % 3
             self.image.fill(status_clr[self.cell_status])
+
             if self.cell_status == 2:
-                water(self.i,self.j)
+                water(self.i, self.j)
         self.image.fill(status_clr[self.cell_status])
+
     def fill(self, stat):
         self.cell_status = stat
         self.image.fill(status_clr[self.cell_status])
 
-all_sprites = pg.sprite.Group()
-Button_sprites = pg.sprite.Group()
-Cell_sprites = pg.sprite.Group()
+# Переснес в начало
+# all_sprites = pg.sprite.Group()
+# Button_sprites = pg.sprite.Group()
+# Cell_sprites = pg.sprite.Group()
 
 
 CreateField()
-SaveBut = Button(screen,WIDTH//2, HEIGHT-45, WIDTH,45, (150,150,150),'Save & Exit',save)
-ClrBut =  Button(screen,WIDTH//2, HEIGHT-90-pad, WIDTH,45, (150,150,150), 'Clear', clear)
+SaveBut = Button(screen, WIDTH//2, HEIGHT-45, WIDTH, 45, (150,150,150), 'Save & Exit', save)
+ClrBut =  Button(screen, WIDTH//2, HEIGHT-90-pad, WIDTH, 45, (150,150,150), 'Clear', clear)
+
 # Цикл игры
 running = True
 while running:
@@ -176,3 +199,9 @@ while running:
     pg.display.flip()
 
 pg.quit()
+
+# Глобальные комментарии
+# 1. Сделай так, чтоб не перключалось на воду просто так. Клетка должна переключаться только на пусто, стену
+# 2. Вода должна разливаться только по отдельной кнопке
+# ?3. Получится ли реальзовать такое: Чтобы я зажал кнопку и например повел вниз и все клетки по пути меняют статус( типо рисование )
+# ?4. добавь задержку в распростронении воды, чтоб это было красиво
