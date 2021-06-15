@@ -12,8 +12,16 @@ PAD = 1
 
 
 BTN_SIZE = 30
+
+MIN_SIZE = (300,300)
+
+
 WIDTH = BTN_SIZE * COLS + PAD * COLS + 90
 HEIGHT =  BTN_SIZE * ROWS + PAD * COLS + 90 + PAD
+if WIDTH < MIN_SIZE[0]:
+    WIDTH = MIN_SIZE[0]
+if HEIGHT < MIN_SIZE[1]:
+    HEIGHT = MIN_SIZE[1]
 
 # Задаем цвета
 WHITE = (255, 255, 255)
@@ -26,6 +34,7 @@ BLUE = (0, 0, 255)
 CHOOSEN_STATE = 0
 
 
+way = []
 field = []
 status_clr = [WHITE, BLACK, BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
@@ -74,7 +83,6 @@ def parse():
         for jj in range(COLS):
             if field[ii][jj].cell_status == 2:
                 water(ii,jj)
-                break
 
     ii = 0
     jj = 0
@@ -82,7 +90,6 @@ def parse():
         for jj in range(COLS):
             if field[ROWS-1-ii][COLS-1-jj].cell_status == 2:
                 water(ROWS-1-ii,COLS-1-jj)
-                break
 
 def save():
     global field
@@ -97,6 +104,23 @@ def clear():
     for i in cell_sprites:
         i.fill(0)
 
+def start_bot():
+    global way,field
+    i = -1
+    j = -1
+    while i != 19 and j != 19:
+        if i+1 < 20 and field[i+1][j].cell_status == 0:
+            i+= 1
+        if j+1 < 20 and field[i][j+1].cell_status == 0:
+            j += 1
+        print(i,"   ", j)
+        way.append([i,j])
+    print(way)
+    for i in way:
+        ii = i[0]
+        jj = i[1]
+        field[ii][jj].image.fill(RED)
+
 # Перенес в начало ---вернул сюда, оно только для draw_text нужно---
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Так может тогда завернуть это в сам draw_text?
@@ -110,11 +134,12 @@ def draw_text(surf, text, size, x, y, color):
     surf.blit(text_surface, text_rect)
 
 class SelectButton(pg.sprite.Sprite):
-    def __init__(self,x,y,img_name,state):
+    def __init__(self,x,y,img_name,format,state):
         pg.sprite.Sprite.__init__(self)
 
-        self.unselected_img = pg.image.load(path.join(img_dir, img_name)).convert()
-        self.image = self.unselected_img
+        self.pressed_img = pg.image.load(path.join(img_dir, img_name + "_pressed" + format)).convert()
+        self.unpressed_img = pg.image.load(path.join(img_dir, img_name + format)).convert()
+        self.image = self.unpressed_img
 
         self.rect = self.image.get_rect()
         self.rect.midtop = (x,y)
@@ -127,6 +152,12 @@ class SelectButton(pg.sprite.Sprite):
 
     def update(self,was_click):
         global select_cap_x,select_cap_y
+
+        self.image = self.unpressed_img
+        pressed = pg.mouse.get_pressed()
+        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()):
+            self.image = self.pressed_img
+
         if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
             self.select_me()
             select_cap_x =  self.rect.x
@@ -215,24 +246,25 @@ class Cell(pg.sprite.Sprite):
 # Button_sprites = pg.sprite.Group()
 # Cell_sprites = pg.sprite.Group()
 
-select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
-select_cap_img.set_colorkey(WHITE)
-select_cap_x = WIDTH + 100
-select_cap_y = HEIGHT + 100
 
 
 CreateField()
 SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45, WIDTH-90-PAD, 45, GREY, 'Save & Exit', save)
 ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD, WIDTH-90-PAD, 45, GREY, 'Clear', clear)
+StartBot = Button(screen, 45, 162, 80, 50, GREY, 'Start', start_bot)
 
 SideBar = pg.Surface((90,HEIGHT))
 SideBar.fill(GREY)
 
 #self,x,y,img_name,state
-EmptySelect = SelectButton(WIDTH-45,2,'select_empty.png',0)
-WallSelect = SelectButton(WIDTH-45,39,'select_wall.png' ,1)
-WaterSelect = SelectButton(WIDTH-45,78,'select_water.png',2)
+EmptySelect = SelectButton(WIDTH-45,2,'select_empty','.png',0)
+WallSelect = SelectButton(WIDTH-45,54,'select_wall','.png' ,1)
+WaterSelect = SelectButton(WIDTH-45,108,'select_water','.png',2)
 
+select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
+select_cap_img.set_colorkey(WHITE)
+select_cap_x = EmptySelect.rect.x
+select_cap_y = EmptySelect.rect.y
 
 # Цикл игры
 running = True
