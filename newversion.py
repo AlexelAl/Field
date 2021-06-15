@@ -109,16 +109,16 @@ def clear():
 
 def start_bot():
     global way,field
-    i = -1
-    j = -1
-    while i != 19 and j != 19:
+    i = 0
+    j = 0
+    way = [[0,0]]
+    while i != 19 or j != 19:
         if i+1 < 20 and field[i+1][j].cell_status == 0:
             i+= 1
-        if j+1 < 20 and field[i][j+1].cell_status == 0:
+        elif j+1 < 20 and field[i][j+1].cell_status == 0:
             j += 1
-        print(i,"   ", j)
         way.append([i,j])
-    print(way)
+
     for i in way:
         ii = i[0]
         jj = i[1]
@@ -249,7 +249,7 @@ class Cell(pg.sprite.Sprite):
 CreateField()
 SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45, WIDTH-90-PAD, 45, GREY, 'Save & Exit', save)
 ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD, WIDTH-90-PAD, 45, GREY, 'Clear', clear)
-StartBot = Button(screen, 45, 162, 80, 50, GREY, 'Start', start_bot)
+StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
 
 SideBar = pg.Surface((90,HEIGHT))
 SideBar.fill(GREY)
