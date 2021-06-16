@@ -1,6 +1,7 @@
 import pygame  as pg
 import sys
 from os import path
+import math
 
 img_dir = path.join(path.dirname(__file__), 'assets')
 
@@ -17,7 +18,7 @@ MIN_SIZE = (300,300)
 
 
 WIDTH = BTN_SIZE * COLS + PAD * COLS + 90
-HEIGHT =  BTN_SIZE * ROWS + PAD * COLS + 90 + PAD
+HEIGHT =  BTN_SIZE * ROWS + PAD * (ROWS+1) + 135 + PAD
 if WIDTH < MIN_SIZE[0]:
     WIDTH = MIN_SIZE[0]
 if HEIGHT < MIN_SIZE[1]:
@@ -32,11 +33,12 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
 CHOOSEN_STATE = 0
+ENDPOINT = None
 
 
 way = []
 field = []
-status_clr = [WHITE, BLACK, BLUE]
+status_clr = [WHITE, BLACK, BLUE, RED]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
 
 
@@ -53,14 +55,16 @@ cell_sprites = pg.sprite.Group()
 select_sprites = pg.sprite.Group()
 
 def CreateField():
-    global field
+    global field, ENDPOINT
     f = open('save.txt', 'r')
     for i in range(ROWS):
         field.append([])
         for j in range(COLS):
             stat = f.read(1)
-            if stat == '' or int(stat) > 2:
+            if stat == '':
                 stat = '0'
+            elif int(stat) == 3:
+                ENDPOINT = (i,j)
 
             cell = Cell( screen, int( stat ), i * ( BTN_SIZE + PAD ), j * (BTN_SIZE + PAD), i, j )
             field[i].append( cell )
@@ -68,54 +72,77 @@ def CreateField():
 
 def water(i,j):
     global field
-    if field[i][j].cell_status != 2:
+    if i >= ROWS or j >= COLS or field[i][j].status != 2:
         return
     for k in border:
         newi = i + k[0]
         newj = j + k[1]
         in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
-        if in_field and not field[newi][newj].cell_status == 1:
-            field[newi][newj].cell_status = 2
+        if in_field and field[newi][newj].status != 1:
+            field[newi][newj].status = 2
+            for h in border:
+                ii = newi + h[0]
+                jj = newj + h[1]
+                new_in_field = not(0 > ii or ii >= ROWS or 0 > jj or jj >= COLS)
+                if new_in_field and field[ii][jj].status != 1:
+                    field[ii][jj].status = 2
+def checkBorders(i,j):
+    for k in border:
+        newi = i + k[0]
+        newj = j + k[1]
+        in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
+        if in_field and field[newi][newj].status != 1 and field[newi][newj].status != 2:
+            return True
+    return False
 
-def parse():
+
+def parse(endpoint=None):
     global field
-    for ii in range(ROWS):
-        for jj in range(COLS):
-            if field[ii][jj].cell_status == 2:
-                water(ii,jj)
 
-    ii = 0
-    jj = 0
     for ii in range(ROWS):
         for jj in range(COLS):
-            if field[ROWS-1-ii][COLS-1-jj].cell_status == 2:
-                water(ROWS-1-ii,COLS-1-jj)
+            if field[ii][jj].status == 2:
+                if endpoint and field[endpoint[0]][endpoint[1]].status == 2:
+                    return
+                if checkBorders(ii,jj):
+                    water(ii,jj)
+                    water(ii+1,jj)
+                    water(ii-1,jj)
+                    water(ii,jj+1)
+                    water(ii,jj-1)
+                    return
+
+
 
 def save():
     global field
     f = open('save.txt', 'w')
     for i in field:
         for j in i:
-            f.write(str(j.cell_status))
+            f.write(str(j.status))
     f.close()
     sys.exit()
 
 def clear():
     for i in cell_sprites:
         i.fill(0)
+def delwater():
+    for i in cell_sprites:
+        if i.status == 2:
+            i.fill(0)
 
 def start_bot():
     global way,field
-    i = 0
-    j = 0
-    way = [[0,0]]
-    while i != 19 or j != 19:
-        if i+1 < 20 and field[i+1][j].cell_status == 0:
+    i = -1
+    j = -1
+    while i != ROWS-1 and j != COLS-1:
+        if i+1 < ROWS and field[i+1][j].status == 0:
             i+= 1
-        elif j+1 < 20 and field[i][j+1].cell_status == 0:
+        if j+1 < COLS and field[i][j+1].status == 0:
             j += 1
+        print(i,"   ", j)
         way.append([i,j])
-
+    print(way)
     for i in way:
         ii = i[0]
         jj = i[1]
@@ -153,20 +180,27 @@ class SelectButton(pg.sprite.Sprite):
     def update(self,was_click):
         global select_cap_x,select_cap_y
 
+        if self.selected:
+            select_cap_x =  self.rect.x
+            select_cap_y = self.rect.y
+
         self.image = self.unpressed_img
         pressed = pg.mouse.get_pressed()
         if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()):
             self.image = self.pressed_img
+            if self.selected:
+                select_cap_x =  self.rect.x + 2
+                select_cap_y = self.rect.y + 2
 
         if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
             self.select_me()
-            select_cap_x =  self.rect.x
-            select_cap_y = self.rect.y
     def select_me(self):
         global CHOOSEN_STATE
         self.unselect_all()
         self.selected = True
         CHOOSEN_STATE = self.state
+        select_cap_x =  self.rect.x
+        select_cap_y = self.rect.y
     def unselect_all(self):
         for i in select_sprites:
             i.selected = False
@@ -211,10 +245,10 @@ class Cell(pg.sprite.Sprite):
         pg.sprite.Sprite.__init__(self)
 
         # Мне кажется можно оставить просто слово status мы же и так в Cell ---Можно, но сеll_status
-        self.cell_status = status                            # 0 - empty        Часто упоминается,и много менять !!!!!!!!!!!!!!!!!!!!!!
-        self.image = pg.Surface((BTN_SIZE,BTN_SIZE))         # 1 - wall         Тут самое время познакомится с удобствами среды разработки)
-        self.image.fill(status_clr[self.cell_status])        # 2 - water        Жми контрол ф, появится две строки - файнд и реплэйс.
-        self.rect = self.image.get_rect()                    #                  в файнд - ЧТО нужно заменить, в реплайс НА ЧТО заменить)
+        self.status = status                            # 0 - empty        Часто упоминается,и много менять !!!!!!!!!!!!!!!!!!!!!!
+        self.image = pg.Surface((BTN_SIZE,BTN_SIZE))    # 1 - wall         Тут самое время познакомится с удобствами среды разработки)
+        self.image.fill(status_clr[self.status])        # 2 - water        Жми контрол ф, появится две строки - файнд и реплэйс.
+        self.rect = self.image.get_rect()               # 3 - endpoint     в файнд - ЧТО нужно заменить, в реплайс НА ЧТО заменить)
         self.rect.x = x
         self.rect.y = y
         self.i = i
@@ -228,16 +262,25 @@ class Cell(pg.sprite.Sprite):
         if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx:
             # Эммм, кажется ниже есть метод для этого) ----Тебе кажется----
             self.on_click()
-            if self.cell_status == 2:
+            if self.status == 2:
                 water(self.i, self.j)
-        self.image.fill(status_clr[self.cell_status])
+
+        self.image.fill(status_clr[self.status])
     def on_click(self, color = None):
+        global ENDPOINT
+        if self.status == 3:
+            ENDPOINT = None
         self.fill(CHOOSEN_STATE)
         self.click_indx = True
 
     def fill(self, state):
-        self.cell_status = state
-        self.image.fill(status_clr[self.cell_status])
+        self.status = state
+        self.image.fill(status_clr[self.status])
+    def become_endpoint(self):
+        for i in cell_sprites:
+            if i.status == 3:
+                i.status = 0
+        self.status = 3
 
 # Переснес в начало --- Зачем? ------
 #!!!!!!!!!!!!!!!!!!!!!!!!ну вроде как глобальное объявление групп, это больше похоже на насройки и константы
@@ -249,17 +292,28 @@ class Cell(pg.sprite.Sprite):
 
 
 CreateField()
-SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45, WIDTH-90-PAD, 45, GREY, 'Save & Exit', save)
-ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD, WIDTH-90-PAD, 45, GREY, 'Clear', clear)
-StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
 
+#BottomBar buttons
+
+# surface, x, y, width, height, color, text, command
+SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45,
+                WIDTH-90-PAD, 45, GREY, 'Save & Exit', save)
+ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD,
+                WIDTH-90-PAD, 45, GREY, 'Clear', clear)
+DelWaterBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-135-PAD*2,
+                WIDTH-90-PAD, 45, GREY, 'Clear water', delwater)
+
+#SideBar buttons
 SideBar = pg.Surface((90,HEIGHT))
 SideBar.fill(GREY)
 
-#self,x,y,img_name,state
 EmptySelect = SelectButton(WIDTH-45,2,'select_empty','.png',0)
+EmptySelect.select_me()
+
 WallSelect = SelectButton(WIDTH-45,54,'select_wall','.png' ,1)
 WaterSelect = SelectButton(WIDTH-45,108,'select_water','.png',2)
+
+StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
 
 select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
 select_cap_img.set_colorkey(WHITE)
@@ -281,10 +335,19 @@ while running:
             was_click = True
             for i in cell_sprites:
                 i.click_indx = False
+        if event.type == pg.MOUSEBUTTONUP and event.button == 3 and CHOOSEN_STATE == 2:
+            pos = pg.mouse.get_pos()
+            print(1)
+            i =  math.floor(pos[0] / (BTN_SIZE+PAD))
+            j =  math.floor(pos[1] / (BTN_SIZE+PAD))
+            if i >= 0 and j >= 0 and i < ROWS and j < COLS:
+                field[i][j].status = 3
+                field[i][j].become_endpoint()
+                ENDPOINT = (i,j)
 
 
     # Обновление
-    parse()
+    parse(ENDPOINT)
     all_sprites.update(was_click)
 
     # Рендеринг
@@ -307,7 +370,7 @@ pg.quit()
 # 3 Этап. Нужно сделать так, чтобы вода заканчивала распространяться, как только достигнет какой то заданной клетки
 # Соответсвенно нужна возможность отметить клетку до которой мы распростроняем воду.
 # Т.е. что то типо финальная точка, потом выбираем воду и тыкаем в любую клетку и как только вода попадает в целевую клетку - она перестает распространяться
-
+#------------------Выбираешь воду, и на пкм выбираешь конечную точку
 
 #В СЛЕДУЮЩЕМ ОБНОВЛЕНИИ:
 #----Красивое распростронение воды
