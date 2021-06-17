@@ -78,20 +78,20 @@ def water(i,j):
         newi = i + k[0]
         newj = j + k[1]
         in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
-        if in_field and field[newi][newj].status != 1:
+        if in_field and field[newi][newj].status == 0:
             field[newi][newj].status = 2
             for h in border:
                 ii = newi + h[0]
                 jj = newj + h[1]
                 new_in_field = not(0 > ii or ii >= ROWS or 0 > jj or jj >= COLS)
-                if new_in_field and field[ii][jj].status != 1:
+                if new_in_field and field[ii][jj].status == 0:
                     field[ii][jj].status = 2
 def checkBorders(i,j):
     for k in border:
         newi = i + k[0]
         newj = j + k[1]
         in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
-        if in_field and field[newi][newj].status != 1 and field[newi][newj].status != 2:
+        if in_field and field[newi][newj].status == 0:
             return True
     return False
 
@@ -124,21 +124,26 @@ def save():
     sys.exit()
 
 def clear():
+    global ENDPOINT
     for i in cell_sprites:
         i.fill(0)
+    ENDPOINT = None
+
 def delwater():
+    global ENDPOINT
     for i in cell_sprites:
-        if i.status == 2:
+        if i.status == 2 or i.status == 3:
             i.fill(0)
+    ENDPOINT = None
 
 def start_bot():
     global way,field
     i = -1
     j = -1
     while i != ROWS-1 and j != COLS-1:
-        if i+1 < ROWS and field[i+1][j].status == 0:
-            i+= 1
-        if j+1 < COLS and field[i][j+1].status == 0:
+        if i+1 < ROWS and (field[i+1][j].status == 0 or field[i+1][j].status == 3):
+            i += 1
+        if j+1 < COLS and (field[i][j+1].status == 0 or field[i][j+1].status == 3):
             j += 1
         print(i,"   ", j)
         way.append([i,j])
@@ -177,7 +182,7 @@ class SelectButton(pg.sprite.Sprite):
         all_sprites.add(self)
         select_sprites.add(self)
 
-    def update(self,was_click):
+    def update(self,l_click):
         global select_cap_x,select_cap_y
 
         if self.selected:
@@ -192,7 +197,7 @@ class SelectButton(pg.sprite.Sprite):
                 select_cap_x =  self.rect.x + 2
                 select_cap_y = self.rect.y + 2
 
-        if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
+        if l_click and self.rect.collidepoint(pg.mouse.get_pos()):
             self.select_me()
     def select_me(self):
         global CHOOSEN_STATE
@@ -224,9 +229,9 @@ class Button(pg.sprite.Sprite):
         all_sprites.add(self)
         button_sprites.add(self)
 
-    def update(self,was_click):
+    def update(self,l_click):
         pressed = pg.mouse.get_pressed()
-        if was_click and self.rect.collidepoint(pg.mouse.get_pos()):
+        if l_click and self.rect.collidepoint(pg.mouse.get_pos()):
             self.command()
         self.image.fill(self.color)
         self.rect.midtop = self.coords
@@ -257,7 +262,14 @@ class Cell(pg.sprite.Sprite):
 
         all_sprites.add(self)
         cell_sprites.add(self)
-    def update(self,was_click):
+    def update(self,l_click):
+        global status_clr
+
+        if CHOOSEN_STATE != 2:
+            status_clr[3] = status_clr[0]
+        else:
+            status_clr[3] = RED
+
         pressed = pg.mouse.get_pressed()
         if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx:
             # Эммм, кажется ниже есть метод для этого) ----Тебе кажется----
@@ -276,14 +288,10 @@ class Cell(pg.sprite.Sprite):
     def fill(self, state):
         self.status = state
         self.image.fill(status_clr[self.status])
-    def become_endpoint(self):
-        for i in cell_sprites:
-            if i.status == 3:
-                i.status = 0
-        self.status = 3
+
 
 # Переснес в начало --- Зачем? ------
-#!!!!!!!!!!!!!!!!!!!!!!!!ну вроде как глобальное объявление групп, это больше похоже на насройки и константы
+#!!!!!!!!!!!!!ну вроде как глобальное объявление групп, это больше похоже на насройки и константы
 
 # all_sprites = pg.sprite.Group()
 # Button_sprites = pg.sprite.Group()
@@ -323,7 +331,7 @@ select_cap_y = EmptySelect.rect.y
 # Цикл игры
 running = True
 while running:
-    was_click = False
+    l_click = False
     # Держим цикл на правильной скорости
     clock.tick(FPS)
     # Ввод процесса (события)
@@ -332,23 +340,21 @@ while running:
         if event.type == pg.QUIT:
             running = False
         if event.type == pg.MOUSEBUTTONUP and event.button == 1:
-            was_click = True
+            l_click = True
             for i in cell_sprites:
                 i.click_indx = False
         if event.type == pg.MOUSEBUTTONUP and event.button == 3 and CHOOSEN_STATE == 2:
             pos = pg.mouse.get_pos()
-            print(1)
             i =  math.floor(pos[0] / (BTN_SIZE+PAD))
             j =  math.floor(pos[1] / (BTN_SIZE+PAD))
             if i >= 0 and j >= 0 and i < ROWS and j < COLS:
                 field[i][j].status = 3
-                field[i][j].become_endpoint()
-                ENDPOINT = (i,j)
+                field[i][j].fill(3)
 
 
     # Обновление
     parse(ENDPOINT)
-    all_sprites.update(was_click)
+    all_sprites.update(l_click)
 
     # Рендеринг
     screen.fill(BLACK)
