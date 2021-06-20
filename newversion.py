@@ -2,17 +2,20 @@ import pygame  as pg
 import sys
 from os import path
 import math
+from GUI import *
+
+input_bow = InLineTextBox((0, 0), 200)
 
 img_dir = path.join(path.dirname(__file__), 'assets')
 
 FPS = 30
 
-ROWS = 15
-COLS = 15
+ROWS = 30
+COLS = 30
 PAD = 1
 
 
-BTN_SIZE = 30
+BTN_SIZE = 20
 
 MIN_SIZE = (300,300)
 
@@ -38,6 +41,8 @@ ENDPOINT = None
 
 way = []
 field = []
+old_new_water = []
+new_water = []
 status_clr = [WHITE, BLACK, BLUE, RED]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
 
@@ -55,7 +60,10 @@ cell_sprites = pg.sprite.Group()
 select_sprites = pg.sprite.Group()
 
 def CreateField():
+    #Creating Field
     global field, ENDPOINT
+
+    # Copy field from file or Make empty cells
     f = open('save.txt', 'r')
     for i in range(ROWS):
         field.append([])
@@ -70,8 +78,10 @@ def CreateField():
             field[i].append( cell )
     f.close()
 
-def water(i,j):
-    global field
+def watering(i,j):
+    # fill near cells water
+
+    global field, new_water
     if i >= ROWS or j >= COLS or field[i][j].status != 2:
         return
     for k in border:
@@ -80,41 +90,32 @@ def water(i,j):
         in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
         if in_field and field[newi][newj].status == 0:
             field[newi][newj].status = 2
-            for h in border:
-                ii = newi + h[0]
-                jj = newj + h[1]
-                new_in_field = not(0 > ii or ii >= ROWS or 0 > jj or jj >= COLS)
-                if new_in_field and field[ii][jj].status == 0:
-                    field[ii][jj].status = 2
-def checkBorders(i,j):
-    for k in border:
-        newi = i + k[0]
-        newj = j + k[1]
-        in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
-        if in_field and field[newi][newj].status == 0:
-            return True
-    return False
+            new_water.append((newi,newj))
+#def checkBorders(i,j):
+#    for k in border:
+    #    newi = i + k[0]
+    #    newj = j + k[1]
+    #    in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
+        #if in_field and field[newi][newj].status == 0:
+            #return True
+#    return False
 
 
-def parse(endpoint=None):
-    global field
+def water_logic():
 
-    for ii in range(ROWS):
-        for jj in range(COLS):
-            if field[ii][jj].status == 2:
-                if endpoint and field[endpoint[0]][endpoint[1]].status == 2:
-                    return
-                if checkBorders(ii,jj):
-                    water(ii,jj)
-                    water(ii+1,jj)
-                    water(ii-1,jj)
-                    water(ii,jj+1)
-                    water(ii,jj-1)
-                    return
+    #calling once per frame
 
+    global field, new_water, old_new_water
+    old_new_water = new_water
+    new_water = []
+
+    for i in old_new_water:
+        watering(i[0], i[1])
 
 
 def save():
+    #save field to file and exit
+
     global field
     f = open('save.txt', 'w')
     for i in field:
@@ -123,18 +124,15 @@ def save():
     f.close()
     sys.exit()
 
-def clear():
-    global ENDPOINT
+def clear():  #fill the field with empty cells
     for i in cell_sprites:
         i.fill(0)
-    ENDPOINT = None
 
-def delwater():
-    global ENDPOINT
+def delwatering():
+    #   delete  water
     for i in cell_sprites:
-        if i.status == 2 or i.status == 3:
+        if i.status == 2:
             i.fill(0)
-    ENDPOINT = None
 
 def start_bot():
     global way,field
@@ -252,7 +250,7 @@ class Cell(pg.sprite.Sprite):
         # Мне кажется можно оставить просто слово status мы же и так в Cell ---Можно, но сеll_status
         self.status = status                            # 0 - empty        Часто упоминается,и много менять !!!!!!!!!!!!!!!!!!!!!!
         self.image = pg.Surface((BTN_SIZE,BTN_SIZE))    # 1 - wall         Тут самое время познакомится с удобствами среды разработки)
-        self.image.fill(status_clr[self.status])        # 2 - water        Жми контрол ф, появится две строки - файнд и реплэйс.
+        self.image.fill(status_clr[self.status])        # 2 - watering        Жми контрол ф, появится две строки - файнд и реплэйс.
         self.rect = self.image.get_rect()               # 3 - endpoint     в файнд - ЧТО нужно заменить, в реплайс НА ЧТО заменить)
         self.rect.x = x
         self.rect.y = y
@@ -263,7 +261,7 @@ class Cell(pg.sprite.Sprite):
         all_sprites.add(self)
         cell_sprites.add(self)
     def update(self,l_click):
-        global status_clr
+        global new_water, status_clr
 
         if CHOOSEN_STATE != 2:
             status_clr[3] = status_clr[0]
@@ -275,7 +273,7 @@ class Cell(pg.sprite.Sprite):
             # Эммм, кажется ниже есть метод для этого) ----Тебе кажется----
             self.on_click()
             if self.status == 2:
-                water(self.i, self.j)
+                new_water.append((self.i,self.j))
 
         self.image.fill(status_clr[self.status])
     def on_click(self, color = None):
@@ -308,8 +306,8 @@ SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45,
                 WIDTH-90-PAD, 45, GREY, 'Save & Exit', save)
 ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD,
                 WIDTH-90-PAD, 45, GREY, 'Clear', clear)
-DelWaterBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-135-PAD*2,
-                WIDTH-90-PAD, 45, GREY, 'Clear water', delwater)
+DelwateringBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-135-PAD*2,
+                WIDTH-90-PAD, 45, GREY, 'Clear water', delwatering)
 
 #SideBar buttons
 SideBar = pg.Surface((90,HEIGHT))
@@ -353,7 +351,7 @@ while running:
 
 
     # Обновление
-    parse(ENDPOINT)
+    water_logic()
     all_sprites.update(l_click)
 
     # Рендеринг
@@ -366,17 +364,3 @@ while running:
     pg.display.flip()
 
 pg.quit()
-
-# Глобальные комментарии
-# ?4. добавь задержку в распростронении воды, чтоб это было красиво
-    # -------------В процессе------------------
-# 5. Иногда вода глючит, надо поправить
-
-# !!!!!!!!!!!!!!! В целом уже классно все работает, можно переходить к третьему этапу
-# 3 Этап. Нужно сделать так, чтобы вода заканчивала распространяться, как только достигнет какой то заданной клетки
-# Соответсвенно нужна возможность отметить клетку до которой мы распростроняем воду.
-# Т.е. что то типо финальная точка, потом выбираем воду и тыкаем в любую клетку и как только вода попадает в целевую клетку - она перестает распространяться
-#------------------Выбираешь воду, и на пкм выбираешь конечную точку
-
-#В СЛЕДУЮЩЕМ ОБНОВЛЕНИИ:
-#----Красивое распростронение воды
