@@ -31,17 +31,19 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+WATER_BLUE = (82, 222, 190)
 
 CHOOSEN_STATE = 0
-ENDPOINT = None
+
 
 
 way = []
 field = []
 old_new_water = []
 new_water = []
-status_clr = [WHITE, BLACK, BLUE, RED]
+status_clr = [WHITE, BLACK, BLUE, RED, WATER_BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
+endpoint = (0,0)
 
 
 # Создаем игру и окно
@@ -58,7 +60,7 @@ select_sprites = pg.sprite.Group()
 
 def CreateField():
     #Creating Field
-    global field, ENDPOINT
+    global field
 
     # Copy field from file or Make empty cells
     f = open('save.txt', 'r')
@@ -68,8 +70,6 @@ def CreateField():
             stat = f.read(1)
             if stat == '':
                 stat = '0'
-            elif int(stat) == 3:
-                ENDPOINT = (i,j)
 
             cell = Cell( screen, int( stat ), i * ( BTN_SIZE + PAD ), j * (BTN_SIZE + PAD), i, j )
             field[i].append( cell )
@@ -98,11 +98,12 @@ def watering(i,j):
         #     field[newi][newj].way.append([i,j])
         #     new_water.append((newi,newj))
         if currCell.status == 0 or ( currCell.status == 2 and currCell.getStep() > childStep ):
-            currCell.status = 2
             currCell.setParent(i,j)
             currCell.setStep(childStep)
-
             new_water.append((newi,newj))
+
+            currCell.status = 2
+
 
 #def checkBorders(i,j):
 #    for k in border:
@@ -146,17 +147,18 @@ def delwatering():
     for i in cell_sprites:
         if i.status == 2 or i.status == 3:
             i.fill(0)
+            i.resetWay()
 
 def start_bot():
     run = True
-    cell = [ ROWS -1, 0]
+    cell = endpoint
     while run == True:
-        if field[ cell[0] ][ cell[1] ].getStep() == 0:
+        if len(cell) == 0 or field[ cell[0] ][ cell[1] ].getStep() == 0:
             run = False
-            
+        if field[ cell[0] ][ cell[1] ].endpoint == True:
+            field[ cell[0] ][ cell[1] ].endpoint = False
         field[ cell[0] ][ cell[1] ].status = 3
         cell = field[ cell[0] ][ cell[1] ].getParent()
-
 
 
 
@@ -260,15 +262,14 @@ class Cell(pg.sprite.Sprite):
         self.status = status                            # 0 - empty        Часто упоминается,и много менять !!!!!!!!!!!!!!!!!!!!!!
         self.image = pg.Surface((BTN_SIZE,BTN_SIZE))    # 1 - wall         Тут самое время познакомится с удобствами среды разработки)
         self.image.fill(status_clr[self.status])        # 2 - watering        Жми контрол ф, появится две строки - файнд и реплэйс.
-        self.rect = self.image.get_rect()               # 3 - endpoint     в файнд - ЧТО нужно заменить, в реплайс НА ЧТО заменить)
-        self.rect.x = x
+        self.rect = self.image.get_rect()               # 3 - way marker     в файнд - ЧТО нужно заменить, в реплайс НА ЧТО заменить)
+        self.rect.x = x                                 # 4 - endpoint
         self.rect.y = y
         self.i = i
         self.j = j
         self.click_indx = False
 
-        self.way = [[self.i,self.j]]
-
+        self.endpoint = False
         self._parent = []
         self._step = -1
         all_sprites.add(self)
@@ -309,17 +310,18 @@ class Cell(pg.sprite.Sprite):
                 self.setParent(self.i,self.j)
                 self.setStep(0)
 
-        self.image.fill(status_clr[self.status])
+        if self.endpoint:
+            self.image.fill(status_clr[4])
+        else:
+            self.image.fill(status_clr[self.status])
     def on_click(self, color = None):
-        #global ENDPOINT
-        # if self.status == 3:
-        #     ENDPOINT = None
         self.fill(CHOOSEN_STATE)
         self.click_indx = True
 
     def fill(self, state):
         self.status = state
         self.image.fill(status_clr[self.status])
+
 
 
 # Переснес в начало --- Зачем? ------
@@ -355,6 +357,7 @@ WaterSelect = SelectButton(WIDTH-45,108,'select_water','.png',2)
 
 StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
 
+
 select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
 select_cap_img.set_colorkey(WHITE)
 select_cap_x = EmptySelect.rect.x
@@ -380,8 +383,12 @@ while running:
             i =  math.floor(pos[0] / (BTN_SIZE+PAD))
             j =  math.floor(pos[1] / (BTN_SIZE+PAD))
             if i >= 0 and j >= 0 and i < ROWS and j < COLS:
-                field[i][j].status = 3
-                field[i][j].fill(3)
+                for k in cell_sprites:
+                    if k.endpoint:
+                        k.endpoint = False
+                field[i][j].endpoint = True
+                endpoint = (i,j)
+
 
 
     # Обновление
