@@ -2,9 +2,6 @@ import pygame  as pg
 import sys
 from os import path
 import math
-from GUI import *
-
-input_bow = InLineTextBox((0, 0), 200)
 
 img_dir = path.join(path.dirname(__file__), 'assets')
 
@@ -84,19 +81,35 @@ def watering(i,j):
     global field, new_water
     if i >= ROWS or j >= COLS or field[i][j].status != 2:
         return
+
+    childStep = field[i][j].getStep() + 1
+
     for k in border:
         newi = i + k[0]
         newj = j + k[1]
+
         in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
-        if in_field and field[newi][newj].status == 0:
-            field[newi][newj].status = 2
+        if not in_field:
+            continue
+        currCell = field[newi][newj]
+        # if in_field and field[newi][newj].status == 0:
+        #     field[newi][newj].status = 2
+        #     field[newi][newj].way = field[i][j].way
+        #     field[newi][newj].way.append([i,j])
+        #     new_water.append((newi,newj))
+        if currCell.status == 0 or ( currCell.status == 2 and currCell.getStep() > childStep ):
+            currCell.status = 2
+            currCell.setParent(i,j)
+            currCell.setStep(childStep)
+
             new_water.append((newi,newj))
+
 #def checkBorders(i,j):
 #    for k in border:
     #    newi = i + k[0]
     #    newj = j + k[1]
     #    in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
-        #if in_field and field[newi][newj].status == 0:
+        #if in_field and currCell.status == 0:
             #return True
 #    return False
 
@@ -131,25 +144,21 @@ def clear():  #fill the field with empty cells
 def delwatering():
     #   delete  water
     for i in cell_sprites:
-        if i.status == 2:
+        if i.status == 2 or i.status == 3:
             i.fill(0)
 
 def start_bot():
-    global way,field
-    i = -1
-    j = -1
-    while i != ROWS-1 and j != COLS-1:
-        if i+1 < ROWS and (field[i+1][j].status == 0 or field[i+1][j].status == 3):
-            i += 1
-        if j+1 < COLS and (field[i][j+1].status == 0 or field[i][j+1].status == 3):
-            j += 1
-        print(i,"   ", j)
-        way.append([i,j])
-    print(way)
-    for i in way:
-        ii = i[0]
-        jj = i[1]
-        field[ii][jj].image.fill(RED)
+    run = True
+    cell = [ ROWS -1, 0]
+    while run == True:
+        if field[ cell[0] ][ cell[1] ].getStep() == 0:
+            run = False
+            
+        field[ cell[0] ][ cell[1] ].status = 3
+        cell = field[ cell[0] ][ cell[1] ].getParent()
+
+
+
 
 # Перенес в начало ---вернул сюда, оно только для draw_text нужно---
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -258,8 +267,31 @@ class Cell(pg.sprite.Sprite):
         self.j = j
         self.click_indx = False
 
+        self.way = [[self.i,self.j]]
+
+        self._parent = []
+        self._step = -1
         all_sprites.add(self)
         cell_sprites.add(self)
+
+    # Хранить откуда пришли
+    def setParent(self, i, j):
+        self._parent = [i, j]
+    def getParent(self):
+        return self._parent
+
+    # Хранит номер шага
+    def setStep(self, x):
+        self._step = x
+    def getStep(self):
+        return self._step
+
+    # Сбрасывает параметры пути
+    def resetWay(self):
+        self._parent = []
+        self._step = -1
+
+
     def update(self,l_click):
         global new_water, status_clr
 
@@ -274,12 +306,14 @@ class Cell(pg.sprite.Sprite):
             self.on_click()
             if self.status == 2:
                 new_water.append((self.i,self.j))
+                self.setParent(self.i,self.j)
+                self.setStep(0)
 
         self.image.fill(status_clr[self.status])
     def on_click(self, color = None):
-        global ENDPOINT
-        if self.status == 3:
-            ENDPOINT = None
+        #global ENDPOINT
+        # if self.status == 3:
+        #     ENDPOINT = None
         self.fill(CHOOSEN_STATE)
         self.click_indx = True
 
