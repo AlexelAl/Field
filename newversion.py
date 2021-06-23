@@ -43,6 +43,7 @@ old_new_water = []
 new_water = []
 status_clr = [WHITE, BLACK, BLUE, RED, WATER_BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
+
 endpoint = (0,0)
 
 
@@ -150,15 +151,81 @@ def delwatering():
             i.resetWay()
 
 def start_bot():
+
+    # run = True
+    # cell = endpoint
+    # while run == True:
+    #     try:
+    #         if len(cell) == 0 or field[ cell[0] ][ cell[1] ].getStep() == 0:
+    #             run = False
+    #         if not  field[ cell[0] ][ cell[1] ].endpoint:
+    #             field[ cell[0] ][ cell[1] ].status = 3
+    #         cell = field[ cell[0] ][ cell[1] ].getParent()
+    #     except IndexError:
+    #         print('Error: No way to endpoint')
+    #         return
+    # for i in cell_sprites:
+    #     if i.endpoint:
+    #         i.endpoint = False
+    #         i.status = 3
+    global field
+    point_a = (0,0)
+    point_b = (ROWS-1,COLS-1)
+
+    temp_field = []
+    for i in range(ROWS):
+        temp_field.append([])
+        for j in range(COLS):
+            temp_field[i].append(tempCell(i,j,field[i][j].status))
+
+    temp_field[point_a[0]][point_a[1]].status = 2
+    temp_field[point_a[0]][point_a[1]].setStep = 0
+
+    near_cells = [point_a]
+
+    while len(near_cells) != 0:
+        cell = near_cells.pop()
+        i = cell[0]
+        j = cell[1]
+
+        childStep = temp_field[i][j].getStep() + 1
+
+        for k in border:
+            newi = i + k[0]
+            newj = j + k[1]
+
+            in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
+            if not in_field:
+                continue
+
+            currCell = temp_field[newi][newj]
+            if currCell.status == 0 or ( currCell.status == 2 and currCell.getStep() > childStep ):
+                temp_field[newi][newj].setParent(i,j)
+                temp_field[newi][newj].setStep(childStep)
+                near_cells.append((newi,newj))
+
+                temp_field[newi][newj].status = 2
+            if newi == point_b[0] and newj == point_b[1]:
+                near_cells = []
+                break
     run = True
-    cell = endpoint
-    while run == True:
-        if len(cell) == 0 or field[ cell[0] ][ cell[1] ].getStep() == 0:
+    cell = temp_field[point_b[0] ][ point_b[1]]
+    while run:
+        if cell.getStep() == 0:
             run = False
-        if field[ cell[0] ][ cell[1] ].endpoint == True:
-            field[ cell[0] ][ cell[1] ].endpoint = False
-        field[ cell[0] ][ cell[1] ].status = 3
-        cell = field[ cell[0] ][ cell[1] ].getParent()
+        field[cell.i][cell.j].status = 3
+        
+        cell = cell.getParent()
+        cell = temp_field[ cell[0] ][ cell[1]]
+
+
+
+
+
+
+
+
+
 
 
 
@@ -251,6 +318,32 @@ class Button(pg.sprite.Sprite):
             self.image.fill(WHITE)
         draw_text(self.image, self.text, 26, self.rect.width//2, 5, BLACK)
 
+class tempCell():
+    def __init__(self, i, j, status):
+        self.i = i
+        self.j = j
+        self._parent = [i,j]
+        self._step = -1
+        self.status = status
+
+    # Хранить откуда пришли
+    def setParent(self, i, j):
+        self._parent = [i, j]
+    def getParent(self):
+        return self._parent
+
+    # Хранит номер шага
+    def setStep(self, x):
+        self._step = x
+    def getStep(self):
+        return self._step
+
+    # Сбрасывает параметры пути
+    def resetWay(self):
+        self._parent = [i,j]
+        self._step = -1
+
+
 
 class Cell(pg.sprite.Sprite):
     # Можно упростить конструктор, передвая только i, j
@@ -304,6 +397,7 @@ class Cell(pg.sprite.Sprite):
         pressed = pg.mouse.get_pressed()
         if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx:
             # Эммм, кажется ниже есть метод для этого) ----Тебе кажется----
+            delwatering()
             self.on_click()
             if self.status == 2:
                 new_water.append((self.i,self.j))
@@ -334,6 +428,7 @@ class Cell(pg.sprite.Sprite):
 
 
 CreateField()
+field[0][0].endpoint = True
 
 #BottomBar buttons
 
@@ -387,6 +482,7 @@ while running:
                     if k.endpoint:
                         k.endpoint = False
                 field[i][j].endpoint = True
+
                 endpoint = (i,j)
 
 
