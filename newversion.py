@@ -32,6 +32,7 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 WATER_BLUE = (82, 222, 190)
+YELLOW = (255, 255, 0)
 
 CHOOSEN_STATE = 0
 
@@ -44,6 +45,9 @@ old_new_water = []
 new_water = []
 status_clr = [WHITE, BLACK, BLUE, RED, WATER_BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
+
+point_a = (0,0)
+point_b = (ROWS-1, COLS-1)
 
 
 
@@ -147,6 +151,10 @@ def save():
 def clear():  #fill the field with empty cells
     for i in cell_sprites:
         i.fill(0)
+    for i in temp_field:
+        for j in i:
+            j.status = 0
+            j.resetWay()
 
 def delwatering():
     #   delete  water
@@ -154,18 +162,18 @@ def delwatering():
         if i.status == 2 or i.status == 3:
             i.fill(0)
             i.resetWay()
+    for i in temp_field:
+        for j in i:
+            if j.status == 2 or j.status == 3:
+                j.status == 0
+                j.resetWay()
 
 def start_bot():
-    global temp_field
-
-    temp_field = []
+    global temp_field, point_a, point_b
+    delwatering()
     for i in range(ROWS):
-        temp_field.append([])
         for j in range(COLS):
-            temp_field[i].append(tempCell(i,j,field[i][j].status))
-
-    point_a = (0,0)
-    point_b = (ROWS-1,COLS-1)
+            temp_field[i][j].status = field[i][j].status
 
     new_water.append(point_a)
     temp_field[ point_a[0] ][ point_a[1] ].status = 2
@@ -193,6 +201,10 @@ def start_bot():
         for j in range(COLS):
             if temp_field[i][j].status == 3:
                 field[i][j].status = 3
+def count_position(xy):
+    i =  math.floor(xy[0] / (BTN_SIZE+PAD))
+    j =  math.floor(xy[1] / (BTN_SIZE+PAD))
+    return (i,j)
 
 
     # global field
@@ -244,15 +256,6 @@ def start_bot():
     #
     #     cell = cell.getParent()
     #     cell = temp_field[ cell[0] ][ cell[1]]
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-
 
 
 
@@ -367,7 +370,7 @@ class tempCell():
 
     # Сбрасывает параметры пути
     def resetWay(self):
-        self._parent = [i,j]
+        self._parent = []
         self._step = -1
 
 
@@ -415,20 +418,15 @@ class Cell(pg.sprite.Sprite):
     def update(self,l_click):
         global new_water, status_clr
 
-        if CHOOSEN_STATE != 2:
-            status_clr[3] = status_clr[0]
-        else:
-            status_clr[3] = RED
-
         pressed = pg.mouse.get_pressed()
-        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx:
+        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx and not CHOOSEN_STATE == 2:
             # Эммм, кажется ниже есть метод для этого) ----Тебе кажется----
             delwatering()
             self.on_click()
-            if self.status == 2:
-                new_water.append((self.i,self.j))
-                self.setParent(self.i,self.j)
-                self.setStep(0)
+            # if self.status == 2:
+            #     new_water.append((self.i,self.j))
+            #     self.setParent(self.i,self.j)
+            #     self.setStep(0)
 
         else:
             self.image.fill(status_clr[self.status])
@@ -471,7 +469,7 @@ EmptySelect = SelectButton(WIDTH-45,2,'select_empty','.png',0)
 EmptySelect.select_me()
 
 WallSelect = SelectButton(WIDTH-45,54,'select_wall','.png' ,1)
-WaterSelect = SelectButton(WIDTH-45,108,'select_water','.png',2)
+WaterSelect = SelectButton(WIDTH-45,108,'select_points','.png',2)
 
 StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
 
@@ -497,12 +495,13 @@ while running:
             for i in cell_sprites:
                 i.click_indx = False
         if event.type == pg.MOUSEBUTTONUP and event.button == 3 and CHOOSEN_STATE == 2:
-            pos = pg.mouse.get_pos()
-            i =  math.floor(pos[0] / (BTN_SIZE+PAD))
-            j =  math.floor(pos[1] / (BTN_SIZE+PAD))
-            if i >= 0 and j >= 0 and i < ROWS and j < COLS:
-                pass
-
+            ij = count_position(pg.mouse.get_pos())
+            if ij[0] >= 0 and ij[1] >= 0 and ij[0] < ROWS and ij[1] < COLS:
+                point_b = ij
+        elif event.type == pg.MOUSEBUTTONUP and event.button == 1 and CHOOSEN_STATE == 2:
+            ij = count_position(pg.mouse.get_pos())
+            if ij[0] >= 0 and ij[1] >= 0 and ij[0] < ROWS and ij[1] < COLS:
+                point_a = ij
 
 
     # Обновление
@@ -512,8 +511,13 @@ while running:
     screen.fill(BLACK)
     screen.blit(SideBar,(WIDTH-90,0))
 
+
+    field[point_a[0] ][point_a[1] ].image.fill(WATER_BLUE)
+    field[point_b[0] ][point_b[1] ].image.fill(YELLOW)
+
     all_sprites.draw(screen)
     screen.blit(select_cap_img,(select_cap_x,select_cap_y))
+
     # После отрисовки всего, переворачиваем экран
     pg.display.flip()
 
