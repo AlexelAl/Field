@@ -39,12 +39,12 @@ CHOOSEN_STATE = 0
 
 way = []
 field = []
+temp_field = []
 old_new_water = []
 new_water = []
 status_clr = [WHITE, BLACK, BLUE, RED, WATER_BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
 
-endpoint = (0,0)
 
 
 # Создаем игру и окно
@@ -61,7 +61,7 @@ select_sprites = pg.sprite.Group()
 
 def CreateField():
     #Creating Field
-    global field
+    global field, temp_field
 
     # Copy field from file or Make empty cells
     f = open('save.txt', 'r')
@@ -75,15 +75,19 @@ def CreateField():
             cell = Cell( screen, int( stat ), i * ( BTN_SIZE + PAD ), j * (BTN_SIZE + PAD), i, j )
             field[i].append( cell )
     f.close()
+    for i in range(ROWS):
+        temp_field.append([])
+        for j in range(COLS):
+            temp_field[i].append(tempCell(i,j,field[i][j].status))
 
 def watering(i,j):
     # fill near cells water
 
     global field, new_water
-    if i >= ROWS or j >= COLS or field[i][j].status != 2:
+    if i >= ROWS or j >= COLS or temp_field[i][j].status != 2:
         return
 
-    childStep = field[i][j].getStep() + 1
+    childStep = temp_field[i][j].getStep() + 1
 
     for k in border:
         newi = i + k[0]
@@ -92,7 +96,7 @@ def watering(i,j):
         in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
         if not in_field:
             continue
-        currCell = field[newi][newj]
+        currCell = temp_field[newi][newj]
         # if in_field and field[newi][newj].status == 0:
         #     field[newi][newj].status = 2
         #     field[newi][newj].way = field[i][j].way
@@ -118,14 +122,15 @@ def watering(i,j):
 
 def water_logic():
 
-    #calling once per frame
-
     global field, new_water, old_new_water
+
     old_new_water = new_water
     new_water = []
 
+
     for i in old_new_water:
         watering(i[0], i[1])
+
 
 
 def save():
@@ -151,26 +156,7 @@ def delwatering():
             i.resetWay()
 
 def start_bot():
-
-    # run = True
-    # cell = endpoint
-    # while run == True:
-    #     try:
-    #         if len(cell) == 0 or field[ cell[0] ][ cell[1] ].getStep() == 0:
-    #             run = False
-    #         if not  field[ cell[0] ][ cell[1] ].endpoint:
-    #             field[ cell[0] ][ cell[1] ].status = 3
-    #         cell = field[ cell[0] ][ cell[1] ].getParent()
-    #     except IndexError:
-    #         print('Error: No way to endpoint')
-    #         return
-    # for i in cell_sprites:
-    #     if i.endpoint:
-    #         i.endpoint = False
-    #         i.status = 3
-    global field
-    point_a = (0,0)
-    point_b = (ROWS-1,COLS-1)
+    global temp_field
 
     temp_field = []
     for i in range(ROWS):
@@ -178,53 +164,94 @@ def start_bot():
         for j in range(COLS):
             temp_field[i].append(tempCell(i,j,field[i][j].status))
 
-    temp_field[point_a[0]][point_a[1]].status = 2
-    temp_field[point_a[0]][point_a[1]].setStep = 0
+    point_a = (0,0)
+    point_b = (ROWS-1,COLS-1)
 
-    near_cells = [point_a]
+    new_water.append(point_a)
+    temp_field[ point_a[0] ][ point_a[1] ].status = 2
 
-    while len(near_cells) != 0:
-        cell = near_cells.pop()
-        i = cell[0]
-        j = cell[1]
+    water_logic()
+    while len(new_water) != 0 and temp_field[ point_b[0] ][ point_b[1] ].status != 2:
+        water_logic()
 
-        childStep = temp_field[i][j].getStep() + 1
-
-        for k in border:
-            newi = i + k[0]
-            newj = j + k[1]
-
-            in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
-            if not in_field:
-                continue
-
-            currCell = temp_field[newi][newj]
-            if currCell.status == 0 or ( currCell.status == 2 and currCell.getStep() > childStep ):
-                temp_field[newi][newj].setParent(i,j)
-                temp_field[newi][newj].setStep(childStep)
-                near_cells.append((newi,newj))
-
-                temp_field[newi][newj].status = 2
-            if newi == point_b[0] and newj == point_b[1]:
-                near_cells = []
-                break
     run = True
-    cell = temp_field[point_b[0] ][ point_b[1]]
+    cell = point_b
     while run:
-        if cell.getStep() == 0:
-            run = False
-        field[cell.i][cell.j].status = 3
-        
-        cell = cell.getParent()
-        cell = temp_field[ cell[0] ][ cell[1]]
+        try:
+            if len(cell) == 0 or temp_field[ cell[0] ][ cell[1] ].getStep() == 0:
+                run = False
 
 
+            temp_field[ cell[0] ][ cell[1] ].status = 3
+            cell = temp_field[ cell[0] ][ cell[1] ].getParent()
+            temp_field[ cell[0] ][ cell[1] ].status = 3
+
+        except IndexError:
+            print('Error: No way to endpoint')
+            return
+    for i in range(ROWS):
+        for j in range(COLS):
+            if temp_field[i][j].status == 3:
+                field[i][j].status = 3
 
 
-
-
-
-
+    # global field
+    # point_a = (0,0)
+    # point_b = (ROWS-1,COLS-1)
+    #
+    # temp_field = []
+    # for i in range(ROWS):
+    #     temp_field.append([])
+    #     for j in range(COLS):
+    #         temp_field[i].append(tempCell(i,j,field[i][j].status))
+    #
+    # temp_field[point_a[0]][point_a[1]].status = 2
+    # temp_field[point_a[0]][point_a[1]].setStep = 0
+    #
+    # near_cells = [point_a]
+    #
+    # while len(near_cells) != 0:
+    #     cell = near_cells.pop()
+    #     i = cell[0]
+    #     j = cell[1]
+    #
+    #     childStep = temp_field[i][j].getStep() + 1
+    #
+    #     for k in border:
+    #         newi = i + k[0]
+    #         newj = j + k[1]
+    #
+    #         in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
+    #         if not in_field:
+    #             continue
+    #
+    #         currCell = temp_field[newi][newj]
+    #         if currCell.status == 0 or ( currCell.status == 2 and currCell.getStep() > childStep ):
+    #             temp_field[newi][newj].setParent(i,j)
+    #             temp_field[newi][newj].setStep(childStep)
+    #             near_cells.append((newi,newj))
+    #
+    #             temp_field[newi][newj].status = 2
+    #         if newi == point_b[0] and newj == point_b[1]:
+    #             near_cells = []
+    #             break
+    # run = True
+    # cell = temp_field[point_b[0] ][ point_b[1]]
+    # while run:
+    #     if cell.getStep() == 0:
+    #         run = False
+    #     field[cell.i][cell.j].status = 3
+    #
+    #     cell = cell.getParent()
+    #     cell = temp_field[ cell[0] ][ cell[1]]
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
 
 
 
@@ -322,7 +349,7 @@ class tempCell():
     def __init__(self, i, j, status):
         self.i = i
         self.j = j
-        self._parent = [i,j]
+        self._parent = []
         self._step = -1
         self.status = status
 
@@ -362,7 +389,6 @@ class Cell(pg.sprite.Sprite):
         self.j = j
         self.click_indx = False
 
-        self.endpoint = False
         self._parent = []
         self._step = -1
         all_sprites.add(self)
@@ -404,8 +430,6 @@ class Cell(pg.sprite.Sprite):
                 self.setParent(self.i,self.j)
                 self.setStep(0)
 
-        if self.endpoint:
-            self.image.fill(status_clr[4])
         else:
             self.image.fill(status_clr[self.status])
     def on_click(self, color = None):
@@ -428,7 +452,6 @@ class Cell(pg.sprite.Sprite):
 
 
 CreateField()
-field[0][0].endpoint = True
 
 #BottomBar buttons
 
@@ -478,17 +501,11 @@ while running:
             i =  math.floor(pos[0] / (BTN_SIZE+PAD))
             j =  math.floor(pos[1] / (BTN_SIZE+PAD))
             if i >= 0 and j >= 0 and i < ROWS and j < COLS:
-                for k in cell_sprites:
-                    if k.endpoint:
-                        k.endpoint = False
-                field[i][j].endpoint = True
-
-                endpoint = (i,j)
+                pass
 
 
 
     # Обновление
-    water_logic()
     all_sprites.update(l_click)
 
     # Рендеринг
