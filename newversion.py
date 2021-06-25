@@ -68,17 +68,26 @@ def CreateField():
     global field, temp_field
 
     # Copy field from file or Make empty cells
-    f = open('save.txt', 'r')
     for i in range(ROWS):
         field.append([])
         for j in range(COLS):
-            stat = f.read(1)
-            if stat == '':
-                stat = '0'
-
-            cell = Cell( screen, int( stat ), i * ( BTN_SIZE + PAD ), j * (BTN_SIZE + PAD), i, j )
+            cell = Cell( screen, 0, i * ( BTN_SIZE + PAD ), j * (BTN_SIZE + PAD), i, j )
             field[i].append( cell )
+
+    coords = []
+    with open('save.txt' , 'r', encoding="UTF-8") as f:
+        for ex in f.read().split():
+            coords.append(int(ex))
     f.close()
+    c = 0
+    for i in range(len(coords)):
+        if c % 2 == 0:
+            try:
+                field[ coords[c] ][ coords[c+1] ].status = 1
+            except:
+                pass
+        c += 1
+
     for i in range(ROWS):
         temp_field.append([])
         for j in range(COLS):
@@ -144,7 +153,11 @@ def save():
     f = open('save.txt', 'w')
     for i in field:
         for j in i:
-            f.write(str(j.status))
+            if j.status == 1:
+                f.write(str(j.i))
+                f.write(" ")
+                f.write(str(j.j))
+                f.write(" ")
     f.close()
     sys.exit()
 
@@ -419,10 +432,10 @@ class Cell(pg.sprite.Sprite):
         global new_water, status_clr
 
         pressed = pg.mouse.get_pressed()
-        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx and not CHOOSEN_STATE == 2:
+        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx and not CHOOSEN_STATE==2:
             # Эммм, кажется ниже есть метод для этого) ----Тебе кажется----
             delwatering()
-            self.on_click()
+            self.on_click(l_click,r_click)
             # if self.status == 2:
             #     new_water.append((self.i,self.j))
             #     self.setParent(self.i,self.j)
@@ -430,7 +443,8 @@ class Cell(pg.sprite.Sprite):
 
         else:
             self.image.fill(status_clr[self.status])
-    def on_click(self, color = None):
+    def on_click(self,l_click,r_click):
+
         self.fill(CHOOSEN_STATE)
         self.click_indx = True
 
@@ -483,6 +497,7 @@ select_cap_y = EmptySelect.rect.y
 running = True
 while running:
     l_click = False
+    r_click = False
     # Держим цикл на правильной скорости
     clock.tick(FPS)
     # Ввод процесса (события)
@@ -494,6 +509,8 @@ while running:
             l_click = True
             for i in cell_sprites:
                 i.click_indx = False
+        if event.type == pg.MOUSEBUTTONUP and event.button == 3:
+            r_click = True
         if event.type == pg.MOUSEBUTTONUP and event.button == 3 and CHOOSEN_STATE == 2:
             ij = count_position(pg.mouse.get_pos())
             if ij[0] >= 0 and ij[1] >= 0 and ij[0] < ROWS and ij[1] < COLS:
