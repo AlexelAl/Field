@@ -7,12 +7,12 @@ img_dir = path.join(path.dirname(__file__), 'assets')
 
 FPS = 30
 
-ROWS = 10
-COLS = 10
+ROWS = 15
+COLS = 15
 PAD = 1
 
 
-BTN_SIZE = 30
+BTN_SIZE = 25
 
 MIN_SIZE = (300,300)
 
@@ -46,8 +46,8 @@ new_water = []
 status_clr = [WHITE, BLACK, BLUE, RED, WATER_BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
 
-point_b = [0,0]
-point_a = [ROWS-1, COLS-1]
+point_a = [0,0]
+point_b = [ROWS-1, COLS-1]
 
 
 
@@ -188,16 +188,16 @@ def start_bot():
         for j in range(COLS):
             temp_field[i][j].status = field[i][j].status
 
-    new_water.append(point_a)
-    temp_field[ point_a[0] ][ point_a[1] ].status = 2
+    new_water.append(point_b)
+    temp_field[ point_b[0] ][ point_b[1] ].status = 2
 
     water_logic()
-    while len(new_water) != 0 and temp_field[ point_b[0] ][ point_b[1] ].status != 2:
+    while len(new_water) != 0 and temp_field[ point_a[0] ][ point_a[1] ].status != 2:
         water_logic()
 
     run = True
-    cell = point_b
-    way = [point_b]
+    cell = point_a
+    way = [point_a]
     while run:
         try:
             if len(cell) == 0 or temp_field[ cell[0] ][ cell[1] ].getStep() == 0:
@@ -207,7 +207,7 @@ def start_bot():
             temp_field[ cell[0] ][ cell[1] ].status = 3
             cell = temp_field[ cell[0] ][ cell[1] ].getParent()
 
-            way.append((cell))
+            way.append(count_xy(cell))
             temp_field[ cell[0] ][ cell[1] ].status = 3
 
         except IndexError:
@@ -217,14 +217,18 @@ def start_bot():
         for j in range(COLS):
             if temp_field[i][j].status == 3:
                 field[i][j].status = 3
-    bot = Bot(point_b[0],point_b[1], way)
+    bot = Bot(point_a[0],point_a[1], way)
+
     all_sprites.add(bot)
 
-def count_position(xy):
+def count_ij(xy):
     i =  math.floor(xy[0] / (BTN_SIZE+PAD))
     j =  math.floor(xy[1] / (BTN_SIZE+PAD))
-    return [i,j]
-
+    return (i,j)
+def count_xy(ij):
+    x = ij[0] * (BTN_SIZE + PAD )
+    y = ij[1] * (BTN_SIZE + PAD )
+    return [x,y]
 
 
 font_name = pg.font.match_font('arial')
@@ -405,7 +409,7 @@ class Cell(pg.sprite.Sprite):
 
 
 class Bot(pg.sprite.Sprite):
-    def __init__(self,i,j, way_ij):
+    def __init__(self,i,j, way_xy):
         pg.sprite.Sprite.__init__(self)
 
         self.image = pg.image.load(path.join(img_dir, "bot.png")).convert()
@@ -422,33 +426,38 @@ class Bot(pg.sprite.Sprite):
         self.i = i
         self.j = j
 
-        self.way_ij = way_ij
-        self.way_xy = self.way_ij
+        self.way_xy = way_xy
+        self.way_ij = []
+        for i in self.way_xy:
+            self.way_ij.append(i)
+
         self.step = 0
 
-        for i in self.way_xy:
-            i[0] = i[0] * ( BTN_SIZE + PAD )
-            i[1] = i[1] * ( BTN_SIZE + PAD )
+        for i in range(len(self.way_ij)):
+            self.way_ij[i] = count_ij(self.way_ij[i])
 
         self.next_xy = (self.way_xy[self.step+1][0], self.way_xy[self.step+1][1])
+
         self.next_ij = (self.way_ij[self.step+1][0], self.way_ij[self.step+1][1])
         self.delta = (self.next_xy[0]-self.x ,self.next_xy[1]-self.y)
+
     def update(self,l_click):
-        if self.step+1 >= len(self.way_xy):
+        if self.step+2 >= len(self.way_xy):
             self.kill()
             return
-        self.rect.x += self.delta[0] / 3
-        self.rect.y += self.delta[1] / 3
-
-        ij_coords = count_position((self.rect.x,self.rect.y))
+        self.rect.x += self.delta[0] / 5
+        self.rect.y += self.delta[1] / 5
+        ij_coords = count_ij((self.rect.x,self.rect.y))
         in_field = ij_coords[0] >= 0 and ij_coords[0] < ROWS and ij_coords[1] >= 0 and ij_coords[1] < COLS
+
 
         if  ij_coords == self.next_ij or not in_field:
             self.rect.x = self.next_xy[0]
             self.rect.y = self.next_xy[1]
 
+
             self.step += 1
-            ij = count_position((self.rect.x,self.rect.y))
+            ij = count_ij((self.rect.x,self.rect.y))
             self.i = ij[0]
             self.j = ij[1]
             self.next_xy = (self.way_xy[self.step+1][0], self.way_xy[self.step+1][1])
@@ -457,44 +466,6 @@ class Bot(pg.sprite.Sprite):
         # self.rect.x = self.way[self.step][0] * ( BTN_SIZE + PAD )
         # self.rect.y = self.way[self.step][1] * ( BTN_SIZE + PAD )
 
-
-class CarBot(pg.sprite.Sprite):
-    def __init__(self,i,j, way):
-        pg.sprite.Sprite.__init__(self)
-
-        self.image = pg.image.load(path.join(img_dir, "bot.png")).convert()
-        self.image.set_colorkey(WHITE)
-
-        self.image = pg.transform.scale(self.image,(BTN_SIZE,BTN_SIZE))
-        self.rect = self.image.get_rect()
-        self.rect.x = i * ( BTN_SIZE + PAD )
-        self.rect.y = j * ( BTN_SIZE + PAD )
-
-        self.i = i
-        self.j = j
-
-        self.moving = False
-        self.speedx = 0
-        self.speedy = 0
-        self.step = 0
-        self.way = way
-    def update(self, l_click):
-        if self.moving:
-            self.rect.x += self.speedx
-            self.rect.y += self.speedy
-            if self.step==2:
-                self.moving = False
-            self.step += 1
-        else:
-            self.step = 0
-            for i in border:
-                in_field = self.i+i[0] >= 0 and self.i+i[0] < ROWS and self.j+i[1] >= 0 and ROWS and self.j+i[1] < COLS
-                if  in_field and field[self.i+i[0]][self.j+i[1]].status == 3:
-                    self.speedx = BTN_SIZE / 2 * i[0]
-                    self.speedy = BTN_SIZE / 2 * i[1]
-                    self.moving = True
-                    self.i = self.i + i[0]
-                    self.j = self.j + i[1]
 
 # Переснес в начало --- Зачем? ------
 #!!!!!!!!!!!!!ну вроде как глобальное объявление групп, это больше похоже на насройки и константы
@@ -554,11 +525,11 @@ while running:
         if event.type == pg.MOUSEBUTTONUP and event.button == 3:
             r_click = True
         if event.type == pg.MOUSEBUTTONUP and event.button == 3 and CHOOSEN_STATE == 2:
-            ij = count_position(pg.mouse.get_pos())
+            ij = count_ij(pg.mouse.get_pos())
             if ij[0] >= 0 and ij[1] >= 0 and ij[0] < ROWS and ij[1] < COLS:
                 point_b = ij
         elif event.type == pg.MOUSEBUTTONUP and event.button == 1 and CHOOSEN_STATE == 2:
-            ij = count_position(pg.mouse.get_pos())
+            ij = count_ij(pg.mouse.get_pos())
             if ij[0] >= 0 and ij[1] >= 0 and ij[0] < ROWS and ij[1] < COLS:
                 point_a = ij
 
@@ -570,7 +541,6 @@ while running:
     screen.fill(BLACK)
     screen.blit(SideBar,(WIDTH-90,0))
 
-    print(point_a, "----------", point_b)
     field[point_a[0] ][point_a[1] ].image.fill(WATER_BLUE)
     field[point_b[0] ][point_b[1] ].image.fill(YELLOW)
 
