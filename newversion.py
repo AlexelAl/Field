@@ -12,7 +12,7 @@ COLS = 15
 PAD = 1
 
 
-BTN_SIZE = 25
+BTN_SIZE = 55
 
 MIN_SIZE = (300,300)
 
@@ -45,9 +45,17 @@ old_new_water = []
 new_water = []
 status_clr = [WHITE, BLACK, BLUE, RED, WATER_BLUE]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
+rotations = {
+             '(0, 1)': 'DOWN',
+             '(1, 0)': 'RIGHT',
+             '(-1, 0)': 'LEFT',
+             '(0, -1)': 'UP'
+            }
 
 point_a = [0,0]
 point_b = [ROWS-1, COLS-1]
+
+
 
 
 
@@ -197,7 +205,7 @@ def start_bot():
 
     run = True
     cell = point_a
-    way = [point_a]
+    way = [count_xy(point_a)]
     while run:
         try:
             if len(cell) == 0 or temp_field[ cell[0] ][ cell[1] ].getStep() == 0:
@@ -238,6 +246,11 @@ def draw_text(surf, text, size, x, y, color):
     text_rect = text_surface.get_rect()
     text_rect.midtop = (x, y)
     surf.blit(text_surface, text_rect)
+
+def test_btn():
+    m = Moveable()
+
+    print(m.compare((0,0), (1,0)))
 
 class SelectButton(pg.sprite.Sprite):
     def __init__(self,x,y,img_name,format,state):
@@ -412,7 +425,7 @@ class Bot(pg.sprite.Sprite):
     def __init__(self,i,j, way_xy):
         pg.sprite.Sprite.__init__(self)
 
-        self.image = pg.image.load(path.join(img_dir, "bot.png")).convert()
+        self.image = pg.image.load(path.join(img_dir, "car.png")).convert()
         self.image.set_colorkey(WHITE)
 
         self.image = pg.transform.scale(self.image,(BTN_SIZE,BTN_SIZE))
@@ -428,6 +441,9 @@ class Bot(pg.sprite.Sprite):
 
         self.way_xy = way_xy
         self.way_ij = []
+
+
+
         for i in self.way_xy:
             self.way_ij.append(i)
 
@@ -441,13 +457,35 @@ class Bot(pg.sprite.Sprite):
         self.next_ij = (self.way_ij[self.step+1][0], self.way_ij[self.step+1][1])
         self.delta = (self.next_xy[0]-self.x ,self.next_xy[1]-self.y)
 
+        self.condition_rotation = {
+                                   'RIGHT':self.rect.left,
+                                   'LEFT': self.rect.right,
+                                   'UP': self.rect.bottom,
+                                   'DOWN': self.rect.top
+                                  }
+
+        self.rotate = (self.next_ij[0] - self.way_ij[self.step][0], self.next_ij[1] - self.way_ij[self.step][1])
+        self.rotate = rotations[str(self.rotate)]
+
+
     def update(self,l_click):
         if self.step+2 >= len(self.way_xy):
             self.kill()
             return
-        self.rect.x += self.delta[0] / 5
-        self.rect.y += self.delta[1] / 5
-        ij_coords = count_ij((self.rect.x,self.rect.y))
+        self.rotate = (self.next_ij[0] - self.way_ij[self.step][0], self.next_ij[1] - self.way_ij[self.step][1])
+        self.rotate = rotations[str(self.rotate)]
+
+        self.set_condition()
+        self.cond = self.condition_rotation[self.rotate]
+
+        self.rect.x += self.delta[0] / 12
+        self.rect.y += self.delta[1] / 12
+        if self.rotate == 'RIGHT' or self.rotate == 'DOWN':
+            cond_coords = self.rect.topleft
+        else:
+            cond_coords = self.rect.bottomright
+
+        ij_coords = count_ij(cond_coords)
         in_field = ij_coords[0] >= 0 and ij_coords[0] < ROWS and ij_coords[1] >= 0 and ij_coords[1] < COLS
 
 
@@ -465,7 +503,13 @@ class Bot(pg.sprite.Sprite):
             self.delta = (self.next_xy[0]-self.rect.x ,self.next_xy[1]-self.rect.y)
         # self.rect.x = self.way[self.step][0] * ( BTN_SIZE + PAD )
         # self.rect.y = self.way[self.step][1] * ( BTN_SIZE + PAD )
-
+    def set_condition(self):
+        self.condition_rotation = {
+                                   'RIGHT':self.rect.left,
+                                   'LEFT': self.rect.right,
+                                   'UP': self.rect.bottom,
+                                   'DOWN': self.rect.top
+                                  }
 
 # Переснес в начало --- Зачем? ------
 #!!!!!!!!!!!!!ну вроде как глобальное объявление групп, это больше похоже на насройки и константы
@@ -474,8 +518,52 @@ class Bot(pg.sprite.Sprite):
 # Button_sprites = pg.sprite.Group()
 # Cell_sprites = pg.sprite.Group()
 
+class Moveable(pg.sprite.Sprite):
+    def __init__( self, speed = 10 ):
+        pg.sprite.Sprite.__init__(self)
+
+        self.speed = speed
+        self.angle = 0 #90 - право, 180 - низ, 270 - лево, 0 - вверх
+        self.dx = 0
+        self.dy = 0
+
+        self.x = 0
+        self.y = 0
+
+    def move(self):
+        #ИСПРАВИТЬ
+        dx = self.speed * math.cos(self.angle * 180 / math.pi )
+        dy = self.speed * math.sin(self.angle * 180 / math.pi )
+
+        self.dx = dx
+        self.dy = dy
+        print('dX: ',dx,'; dY: ',dy)
+    def go(self, way):
+        vector = []
+        for i in range(len(way)-1):
+            vector.append(self.compare(way[i],way[i+1]))
+
+    def compare(self, a, b):
+        if a[0] == b[0]:
+            if a[1] > b[1]:
+                return 0 #up
+            else:
+                return 180 #down
+
+        if a[1] == b[1]:
+            if a[0] > b[0]:
+                return 270 #left
+            else:
+                return 90 #right
+
+    def update(self):
+        self.rect.x += self.dx
+        self.rect.y += self.dy
 
 
+        #Здесь проверить в какой ячейки ij мы находимся.
+        #далее проверяем наши x y и x y ячейки ij (центральные точки)
+        #self.x - cell.x < 5 то центрируем в ячейке ij
 CreateField()
 
 #BottomBar buttons
@@ -487,6 +575,10 @@ ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD,
                 WIDTH-90-PAD, 45, GREY, 'Clear', clear)
 DelwateringBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-135-PAD*2,
                 WIDTH-90-PAD, 45, GREY, 'Clear water', delwatering)
+StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
+
+But = Button(screen, WIDTH-45, 192, 29,50,(200,200,200), 'Button', test_btn )
+
 
 #SideBar buttons
 SideBar = pg.Surface((90,HEIGHT))
@@ -498,7 +590,7 @@ EmptySelect.select_me()
 WallSelect = SelectButton(WIDTH-45,54,'select_wall','.png' ,1)
 WaterSelect = SelectButton(WIDTH-45,108,'select_points','.png',2)
 
-StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
+
 
 
 select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
