@@ -1,7 +1,7 @@
 import pygame  as pg
 import sys
-from os import path
 import math
+from os import path
 
 img_dir = path.join(path.dirname(__file__), 'assets')
 
@@ -10,19 +10,6 @@ FPS = 30
 ROWS = 15
 COLS = 15
 PAD = 1
-
-
-BTN_SIZE = 55
-
-MIN_SIZE = (300,300)
-
-
-WIDTH = BTN_SIZE * COLS + PAD * COLS + 90
-HEIGHT =  BTN_SIZE * ROWS + PAD * (ROWS+1) + 135 + PAD
-if WIDTH < MIN_SIZE[0]:
-    WIDTH = MIN_SIZE[0]
-if HEIGHT < MIN_SIZE[1]:
-    HEIGHT = MIN_SIZE[1]
 
 # Задаем цвета
 WHITE = (255, 255, 255)
@@ -34,9 +21,17 @@ BLUE = (0, 0, 255)
 WATER_BLUE = (82, 222, 190)
 YELLOW = (255, 255, 0)
 
+BTN_SIZE = 30
+
+MIN_SIZE = (300,300)
+
+WIDTH = BTN_SIZE * ROWS + PAD * ROWS + 90
+HEIGHT =  BTN_SIZE * COLS + PAD * (COLS+1) + 135 + PAD
+if WIDTH < MIN_SIZE[0]:
+    WIDTH = MIN_SIZE[0]
+if HEIGHT < MIN_SIZE[1]:
+    HEIGHT = MIN_SIZE[1]
 CHOOSEN_STATE = 0
-
-
 
 way = []
 field = []
@@ -56,23 +51,18 @@ point_a = [0,0]
 point_b = [ROWS-1, COLS-1]
 
 
-
-
-
-# Создаем игру и окно
 pg.init()
 pg.mixer.init()
 screen = pg.display.set_mode((WIDTH , HEIGHT))
 pg.display.set_caption("My Game")
-clock = pg.time.Clock()
 
 all_sprites = pg.sprite.Group()
 button_sprites = pg.sprite.Group()
 cell_sprites = pg.sprite.Group()
 select_sprites = pg.sprite.Group()
+clock = pg.time.Clock()
 
 def CreateField():
-    #Creating Field
     global field, temp_field
 
     # Copy field from file or Make empty cells
@@ -99,7 +89,7 @@ def CreateField():
     for i in range(ROWS):
         temp_field.append([])
         for j in range(COLS):
-            temp_field[i].append(tempCell(i,j,field[i][j].status))
+            temp_field[i].append(TempCell(i,j,field[i][j].status))
 
 def watering(i,j):
     # fill near cells water
@@ -118,27 +108,13 @@ def watering(i,j):
         if not in_field:
             continue
         currCell = temp_field[newi][newj]
-        # if in_field and field[newi][newj].status == 0:
-        #     field[newi][newj].status = 2
-        #     field[newi][newj].way = field[i][j].way
-        #     field[newi][newj].way.append([i,j])
-        #     new_water.append((newi,newj))
+
         if currCell.status == 0 or ( currCell.status == 2 and currCell.getStep() > childStep ):
             currCell.setParent(i,j)
             currCell.setStep(childStep)
             new_water.append((newi,newj))
 
             currCell.status = 2
-
-
-#def checkBorders(i,j):
-#    for k in border:
-    #    newi = i + k[0]
-    #    newj = j + k[1]
-    #    in_field = not(0 > newi or newi >= ROWS or 0 > newj or newj >= COLS)
-        #if in_field and currCell.status == 0:
-            #return True
-#    return False
 
 
 def water_logic():
@@ -247,10 +223,37 @@ def draw_text(surf, text, size, x, y, color):
     text_rect.midtop = (x, y)
     surf.blit(text_surface, text_rect)
 
-def test_btn():
-    m = Moveable()
 
-    print(m.compare((0,0), (1,0)))
+
+class Button(pg.sprite.Sprite):
+    def __init__(self, surface, x, y, w, h, color, text, command):
+        pg.sprite.Sprite.__init__(self)
+        self.color = color
+        self.command = command
+        self.text = text
+        self.image = pg.Surface((w, h))
+        self.image.fill(self.color)
+        self.rect = self.image.get_rect()
+        self.coords = (x, y)
+        self.rect.midtop = self.coords
+
+        draw_text(self.image, text, 26, w//2, 5, BLACK)
+
+        all_sprites.add(self)
+        button_sprites.add(self)
+
+    def update(self,l_click):
+        pressed = pg.mouse.get_pressed()
+        if l_click and self.rect.collidepoint(pg.mouse.get_pos()):
+            self.command()
+        self.image.fill(self.color)
+        self.rect.midtop = self.coords
+
+        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()):
+            self.rect.x += 2
+            self.rect.y += 2
+            self.image.fill(WHITE)
+        draw_text(self.image, self.text, 26, self.rect.width//2, 5, BLACK)
 
 class SelectButton(pg.sprite.Sprite):
     def __init__(self,x,y,img_name,format,state):
@@ -296,65 +299,6 @@ class SelectButton(pg.sprite.Sprite):
     def unselect_all(self):
         for i in select_sprites:
             i.selected = False
-
-
-
-class Button(pg.sprite.Sprite):
-    def __init__(self, surface, x, y, w, h, color, text, command):
-        pg.sprite.Sprite.__init__(self)
-        self.color = color
-        self.command = command
-        self.text = text
-        self.image = pg.Surface((w, h))
-        self.image.fill(self.color)
-        self.rect = self.image.get_rect()
-        self.coords = (x, y)
-        self.rect.midtop = self.coords
-
-        draw_text(self.image, text, 26, w//2, 5, BLACK)
-
-        all_sprites.add(self)
-        button_sprites.add(self)
-
-    def update(self,l_click):
-        pressed = pg.mouse.get_pressed()
-        if l_click and self.rect.collidepoint(pg.mouse.get_pos()):
-            self.command()
-        self.image.fill(self.color)
-        self.rect.midtop = self.coords
-
-        if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()):
-            self.rect.x += 2
-            self.rect.y += 2
-            self.image.fill(WHITE)
-        draw_text(self.image, self.text, 26, self.rect.width//2, 5, BLACK)
-
-class tempCell():
-    def __init__(self, i, j, status):
-        self.i = i
-        self.j = j
-        self._parent = []
-        self._step = -1
-        self.status = status
-
-    # Хранить откуда пришли
-    def setParent(self, i, j):
-        self._parent = [i, j]
-    def getParent(self):
-        return self._parent
-
-    # Хранит номер шага
-    def setStep(self, x):
-        self._step = x
-    def getStep(self):
-        return self._step
-
-    # Сбрасывает параметры пути
-    def resetWay(self):
-        self._parent = []
-        self._step = -1
-
-
 
 class Cell(pg.sprite.Sprite):
     # Можно упростить конструктор, передвая только i, j
@@ -420,12 +364,36 @@ class Cell(pg.sprite.Sprite):
         self.status = state
         self.image.fill(status_clr[self.status])
 
+class TempCell():
+    def __init__(self, i, j, status):
+        self.i = i
+        self.j = j
+        self._parent = []
+        self._step = -1
+        self.status = status
+
+    # Хранить откуда пришли
+    def setParent(self, i, j):
+        self._parent = [i, j]
+    def getParent(self):
+        return self._parent
+
+    # Хранит номер шага
+    def setStep(self, x):
+        self._step = x
+    def getStep(self):
+        return self._step
+
+    # Сбрасывает параметры пути
+    def resetWay(self):
+        self._parent = []
+        self._step = -1
 
 class Bot(pg.sprite.Sprite):
     def __init__(self,i,j, way_xy):
         pg.sprite.Sprite.__init__(self)
 
-        self.image = pg.image.load(path.join(img_dir, "car.png")).convert()
+        self.image = pg.image.load(path.join(img_dir, "test.png")).convert()
         self.image.set_colorkey(WHITE)
 
         self.image = pg.transform.scale(self.image,(BTN_SIZE,BTN_SIZE))
@@ -467,6 +435,20 @@ class Bot(pg.sprite.Sprite):
         self.rotate = (self.next_ij[0] - self.way_ij[self.step][0], self.next_ij[1] - self.way_ij[self.step][1])
         self.rotate = rotations[str(self.rotate)]
 
+        self.old_rotate = self.rotate
+
+
+        self.angles = {'RIGHT': 270,
+                        'LEFT': 90,
+                        'UP': 0,
+                        'DOWN': 180}
+        self.sprites = (self.image,
+                        pg.transform.rotate(self.image, 270),
+                        pg.transform.rotate(self.image, 180),
+                        pg.transform.rotate(self.image, 90)
+                        )
+        self.rotating = False
+        self.rotate_step = 0
 
     def update(self,l_click):
         if self.step+2 >= len(self.way_xy):
@@ -478,12 +460,21 @@ class Bot(pg.sprite.Sprite):
         self.set_condition()
         self.cond = self.condition_rotation[self.rotate]
 
-        self.rect.x += self.delta[0] / 12
-        self.rect.y += self.delta[1] / 12
-        if self.rotate == 'RIGHT' or self.rotate == 'DOWN':
+        if not self.rotating:
+            self.rect.x += self.delta[0] / 7
+            self.rect.y += self.delta[1] / 7
+        if self.rotate == 'RIGHT':
             cond_coords = self.rect.topleft
-        else:
+            self.image = self.sprites[1]
+        elif self.rotate == 'DOWN':
+            cond_coords = self.rect.topleft
+            self.image = self.sprites[2]
+        elif self.rotate == 'LEFT':
             cond_coords = self.rect.bottomright
+            self.image = self.sprites[3]
+        elif self.rotate == 'UP':
+            cond_coords = self.rect.bottomright
+            self.image = self.sprites[0]
 
         ij_coords = count_ij(cond_coords)
         in_field = ij_coords[0] >= 0 and ij_coords[0] < ROWS and ij_coords[1] >= 0 and ij_coords[1] < COLS
@@ -493,6 +484,7 @@ class Bot(pg.sprite.Sprite):
             self.rect.x = self.next_xy[0]
             self.rect.y = self.next_xy[1]
 
+            self.old_rotate = self.rotate
 
             self.step += 1
             ij = count_ij((self.rect.x,self.rect.y))
@@ -501,8 +493,8 @@ class Bot(pg.sprite.Sprite):
             self.next_xy = (self.way_xy[self.step+1][0], self.way_xy[self.step+1][1])
             self.next_ij = (self.way_ij[self.step+1][0], self.way_ij[self.step+1][1])
             self.delta = (self.next_xy[0]-self.rect.x ,self.next_xy[1]-self.rect.y)
-        # self.rect.x = self.way[self.step][0] * ( BTN_SIZE + PAD )
-        # self.rect.y = self.way[self.step][1] * ( BTN_SIZE + PAD )
+        # a = self.count_del_rotation(self, self.rotate,self.old_rotate)
+        self.rotate_action(180)
     def set_condition(self):
         self.condition_rotation = {
                                    'RIGHT':self.rect.left,
@@ -510,61 +502,27 @@ class Bot(pg.sprite.Sprite):
                                    'UP': self.rect.bottom,
                                    'DOWN': self.rect.top
                                   }
-
-# Переснес в начало --- Зачем? ------
-#!!!!!!!!!!!!!ну вроде как глобальное объявление групп, это больше похоже на насройки и константы
-
-# all_sprites = pg.sprite.Group()
-# Button_sprites = pg.sprite.Group()
-# Cell_sprites = pg.sprite.Group()
-
-class Moveable(pg.sprite.Sprite):
-    def __init__( self, speed = 10 ):
-        pg.sprite.Sprite.__init__(self)
-
-        self.speed = speed
-        self.angle = 0 #90 - право, 180 - низ, 270 - лево, 0 - вверх
-        self.dx = 0
-        self.dy = 0
-
-        self.x = 0
-        self.y = 0
-
-    def move(self):
-        #ИСПРАВИТЬ
-        dx = self.speed * math.cos(self.angle * 180 / math.pi )
-        dy = self.speed * math.sin(self.angle * 180 / math.pi )
-
-        self.dx = dx
-        self.dy = dy
-        print('dX: ',dx,'; dY: ',dy)
-    def go(self, way):
-        vector = []
-        for i in range(len(way)-1):
-            vector.append(self.compare(way[i],way[i+1]))
-
-    def compare(self, a, b):
-        if a[0] == b[0]:
-            if a[1] > b[1]:
-                return 0 #up
-            else:
-                return 180 #down
-
-        if a[1] == b[1]:
-            if a[0] > b[0]:
-                return 270 #left
-            else:
-                return 90 #right
-
-    def update(self):
-        self.rect.x += self.dx
-        self.rect.y += self.dy
+    def rotate_action(self,del_rotation):
+        self.image = pg.transform.rotate(self.image,  self.rotate_step * del_rotation/90)
+        print(del_rotation)
+        if del_rotation != 0 and self.rotate_step != 89:
+            self.rotating = True
+            self.rotate_step += 1
+            self.rect.bottomright = field[self.i][self.j].rect.bottomright
+        else:
+            self.rotating = False
+            self.rotate_step = 0
 
 
-        #Здесь проверить в какой ячейки ij мы находимся.
-        #далее проверяем наши x y и x y ячейки ij (центральные точки)
-        #self.x - cell.x < 5 то центрируем в ячейке ij
-CreateField()
+    @property
+    def count_del_rotation(self, curr, old):
+        return self.angles[old]-self.angles[curr]
+
+
+
+
+
+
 
 #BottomBar buttons
 
@@ -576,8 +534,6 @@ ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD,
 DelwateringBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-135-PAD*2,
                 WIDTH-90-PAD, 45, GREY, 'Clear water', delwatering)
 StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
-
-But = Button(screen, WIDTH-45, 192, 29,50,(200,200,200), 'Button', test_btn )
 
 
 #SideBar buttons
@@ -597,6 +553,12 @@ select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).conve
 select_cap_img.set_colorkey(WHITE)
 select_cap_x = EmptySelect.rect.x
 select_cap_y = EmptySelect.rect.y
+
+CreateField()
+
+
+
+
 
 # Цикл игры
 running = True
