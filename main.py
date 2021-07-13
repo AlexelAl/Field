@@ -38,7 +38,7 @@ field = []
 temp_field = []
 old_new_water = []
 new_water = []
-status_clr = [WHITE, BLACK, BLUE, RED, WATER_BLUE]
+status_clr = [WHITE, BLACK, BLUE, RED]
 border = [[1,0],[-1,0],[0,1],[0,-1]]
 rotations = {
              '(0, 1)': 'DOWN',
@@ -197,10 +197,7 @@ def start_bot():
         except IndexError:
             print('Error: No way to endpoint')
             return
-    for i in range(ROWS):
-        for j in range(COLS):
-            if temp_field[i][j].status == 3:
-                field[i][j].status = 3
+
     bot = Bot(point_a[0],point_a[1], way)
 
     all_sprites.add(bot)
@@ -213,6 +210,11 @@ def count_xy(ij):
     x = ij[0] * (BTN_SIZE + PAD )
     y = ij[1] * (BTN_SIZE + PAD )
     return [x,y]
+def count_coof(x):
+    if x >= 0:
+        return 1
+    else:
+        return -1
 
 
 font_name = pg.font.match_font('arial')
@@ -437,6 +439,10 @@ class Bot(pg.sprite.Sprite):
 
         self.old_rotate = self.rotate
 
+        self.side_state = {'RIGHT' : 1,
+                           'LEFT' : 3,
+                           'UP' : 0,
+                           'DOWN' : 2}
 
         self.angles = {'RIGHT': 270,
                         'LEFT': 90,
@@ -449,6 +455,8 @@ class Bot(pg.sprite.Sprite):
                         )
         self.rotating = False
         self.rotate_step = 0
+        self.was_rotate = False
+
 
     def update(self,l_click):
         if self.step+2 >= len(self.way_xy):
@@ -463,18 +471,13 @@ class Bot(pg.sprite.Sprite):
         if not self.rotating:
             self.rect.x += self.delta[0] / 7
             self.rect.y += self.delta[1] / 7
-        if self.rotate == 'RIGHT':
+
+        if self.rotate == 'RIGHT' or self.rotate == 'DOWN':
             cond_coords = self.rect.topleft
-            self.image = self.sprites[1]
-        elif self.rotate == 'DOWN':
-            cond_coords = self.rect.topleft
-            self.image = self.sprites[2]
-        elif self.rotate == 'LEFT':
+        else:
             cond_coords = self.rect.bottomright
-            self.image = self.sprites[3]
-        elif self.rotate == 'UP':
-            cond_coords = self.rect.bottomright
-            self.image = self.sprites[0]
+
+        self.image = self.sprites[self.side_state[self.rotate]]
 
         ij_coords = count_ij(cond_coords)
         in_field = ij_coords[0] >= 0 and ij_coords[0] < ROWS and ij_coords[1] >= 0 and ij_coords[1] < COLS
@@ -485,16 +488,22 @@ class Bot(pg.sprite.Sprite):
             self.rect.y = self.next_xy[1]
 
             self.old_rotate = self.rotate
+            self.was_rotate = False
 
             self.step += 1
             ij = count_ij((self.rect.x,self.rect.y))
+
             self.i = ij[0]
             self.j = ij[1]
+
+            field[self.i][self.j].status = 3
+
             self.next_xy = (self.way_xy[self.step+1][0], self.way_xy[self.step+1][1])
             self.next_ij = (self.way_ij[self.step+1][0], self.way_ij[self.step+1][1])
             self.delta = (self.next_xy[0]-self.rect.x ,self.next_xy[1]-self.rect.y)
         # a = self.count_del_rotation(self, self.rotate,self.old_rotate)
-        self.rotate_action(180)
+
+
     def set_condition(self):
         self.condition_rotation = {
                                    'RIGHT':self.rect.left,
@@ -502,21 +511,35 @@ class Bot(pg.sprite.Sprite):
                                    'UP': self.rect.bottom,
                                    'DOWN': self.rect.top
                                   }
-    def rotate_action(self,del_rotation):
-        self.image = pg.transform.rotate(self.image,  self.rotate_step * del_rotation/90)
-        print(del_rotation)
-        if del_rotation != 0 and self.rotate_step != 89:
-            self.rotating = True
-            self.rotate_step += 1
-            self.rect.bottomright = field[self.i][self.j].rect.bottomright
-        else:
-            self.rotating = False
-            self.rotate_step = 0
-
-
-    @property
-    def count_del_rotation(self, curr, old):
-        return self.angles[old]-self.angles[curr]
+    # def rotate_action(self,old_rotate,new_rotate):
+    #     del_rotation = count_coof(self.angles[old_rotate] - self.angles[new_rotate]) * -2
+    #     start_rot = self.angles[old_rotate]
+    #     old_center = self.rect.center
+    #
+    #     list = []
+    #     for i in range(45):
+    #         list.append(pg.transform.rotate(self.image, self.angles[old_rotate] +360))
+    #
+    #     print(list)
+    #
+    #     self.image = list[self.rotate_step]
+    #
+    #     self.rect = self.image.get_rect()
+    #     self.rect.center = old_center
+    #
+    #
+    #
+    #     if old_rotate != new_rotate and self.rotate_step != 44 and not self.was_rotate:
+    #         self.rotating = True
+    #         self.rotate_step += 1
+    #     elif self.rotate_step == 44:
+    #         self.was_rotate = True
+    #         self.image = self.sprites[self.side_state[new_rotate]]
+    #         self.rotating = False
+    #         self.rotate_step = 0
+    #     else:
+    #         self.rotating = False
+    #         self.rotate_step = 0
 
 
 
@@ -586,7 +609,6 @@ while running:
             ij = count_ij(pg.mouse.get_pos())
             if ij[0] >= 0 and ij[1] >= 0 and ij[0] < ROWS and ij[1] < COLS:
                 point_a = ij
-
 
     # Обновление
     all_sprites.update(l_click)
