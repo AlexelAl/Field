@@ -7,9 +7,9 @@ img_dir = path.join(path.dirname(__file__), 'assets')
 
 FPS = 30
 
-ROWS = 15
-COLS = 15
-PAD = 1
+ROWS = 10
+COLS = 10
+PAD = 0
 
 # Задаем цвета
 WHITE = (255, 255, 255)
@@ -21,7 +21,7 @@ BLUE = (0, 0, 255)
 WATER_BLUE = (82, 222, 190)
 YELLOW = (255, 255, 0)
 
-BTN_SIZE = 30
+BTN_SIZE = 50
 
 MIN_SIZE = (300,300)
 
@@ -54,7 +54,11 @@ point_b = [ROWS-1, COLS-1]
 pg.init()
 pg.mixer.init()
 screen = pg.display.set_mode((WIDTH , HEIGHT))
-pg.display.set_caption("My Game")
+pg.display.set_caption("Field")
+
+ICON = pg.image.load(path.join(img_dir, "bot.png"))
+ICON.set_colorkey(WHITE)
+pg.display.set_icon(ICON)
 
 all_sprites = pg.sprite.Group()
 button_sprites = pg.sprite.Group()
@@ -89,7 +93,7 @@ def CreateField():
     for i in range(ROWS):
         temp_field.append([])
         for j in range(COLS):
-            temp_field[i].append(TempCell(i,j,field[i][j].status))
+            temp_field[i].append(TempCell(i,j,field[i][j].status))   # create table of cells and visual objeckts
 
 def watering(i,j):
     # fill near cells water
@@ -114,7 +118,7 @@ def watering(i,j):
             currCell.setStep(childStep)
             new_water.append((newi,newj))
 
-            currCell.status = 2
+            currCell.status = 2   # fill near cells by water
 
 
 def water_logic():
@@ -126,7 +130,7 @@ def water_logic():
 
 
     for i in old_new_water:
-        watering(i[0], i[1])
+        watering(i[0], i[1])   # fill field with function "watering"
 
 
 
@@ -143,15 +147,14 @@ def save():
                 f.write(str(j.j))
                 f.write(" ")
     f.close()
-    sys.exit()
 
-def clear():  #fill the field with empty cells
+def clear():
     for i in cell_sprites:
         i.fill(0)
     for i in temp_field:
         for j in i:
             j.status = 0
-            j.resetWay()
+            j.resetWay()  # fill the field with empty cells
 
 def delwatering():
     #   delete  water
@@ -163,7 +166,7 @@ def delwatering():
         for j in i:
             if j.status == 2 or j.status == 3:
                 j.status == 0
-                j.resetWay()
+                j.resetWay()  # clear all water cells
 
 def start_bot():
     global temp_field, point_a, point_b
@@ -200,7 +203,7 @@ def start_bot():
 
     bot = Bot(point_a[0],point_a[1], way)
 
-    all_sprites.add(bot)
+    all_sprites.add(bot)   # make bot and it's way
 
 def count_ij(xy):
     i =  math.floor(xy[0] / (BTN_SIZE+PAD))
@@ -395,10 +398,12 @@ class Bot(pg.sprite.Sprite):
     def __init__(self,i,j, way_xy):
         pg.sprite.Sprite.__init__(self)
 
-        self.image = pg.image.load(path.join(img_dir, "test.png")).convert()
+        self.image = pg.image.load(path.join(img_dir, "bot.png")).convert()
         self.image.set_colorkey(WHITE)
-
         self.image = pg.transform.scale(self.image,(BTN_SIZE,BTN_SIZE))
+
+        self.start_img = self.image
+
         self.rect = self.image.get_rect()
         self.rect.x = i * ( BTN_SIZE + PAD )
         self.rect.y = j * ( BTN_SIZE + PAD )
@@ -412,20 +417,25 @@ class Bot(pg.sprite.Sprite):
         self.way_xy = way_xy
         self.way_ij = []
 
+        self.step = 0
+
 
 
         for i in self.way_xy:
             self.way_ij.append(i)
 
-        self.step = 0
-
         for i in range(len(self.way_ij)):
             self.way_ij[i] = count_ij(self.way_ij[i])
 
         self.next_xy = (self.way_xy[self.step+1][0], self.way_xy[self.step+1][1])
-
         self.next_ij = (self.way_ij[self.step+1][0], self.way_ij[self.step+1][1])
+
         self.delta = (self.next_xy[0]-self.x ,self.next_xy[1]-self.y)
+
+        self.rotate = (self.next_ij[0] - self.way_ij[self.step][0], self.next_ij[1] - self.way_ij[self.step][1])
+        self.rotate = rotations[str(self.rotate)]
+
+        self.old_rotate = self.rotate
 
         self.condition_rotation = {
                                    'RIGHT':self.rect.left,
@@ -434,20 +444,18 @@ class Bot(pg.sprite.Sprite):
                                    'DOWN': self.rect.top
                                   }
 
-        self.rotate = (self.next_ij[0] - self.way_ij[self.step][0], self.next_ij[1] - self.way_ij[self.step][1])
-        self.rotate = rotations[str(self.rotate)]
-
-        self.old_rotate = self.rotate
-
         self.side_state = {'RIGHT' : 1,
                            'LEFT' : 3,
                            'UP' : 0,
                            'DOWN' : 2}
 
-        self.angles = {'RIGHT': 270,
+        self.angles = { 'UP': 0,
+                        'RIGHT': 270,
+                        'DOWN': 180,
                         'LEFT': 90,
-                        'UP': 0,
-                        'DOWN': 180}
+                        '_UP': 360
+                        }
+
         self.sprites = (self.image,
                         pg.transform.rotate(self.image, 270),
                         pg.transform.rotate(self.image, 180),
@@ -455,29 +463,45 @@ class Bot(pg.sprite.Sprite):
                         )
         self.rotating = False
         self.rotate_step = 0
-        self.was_rotate = False
 
 
     def update(self,l_click):
         if self.step+2 >= len(self.way_xy):
             self.kill()
             return
+        self.rotate_settings()
+        self.image = self.sprites[self.side_state[self.rotate]]
+        self.move()
+        if not self.rotating: self.check_transition()
+        if self.rotating: self.rotate_action()
+
+    def set_condition(self):
+        self.condition_rotation = {
+                                   'RIGHT':self.rect.left,
+                                   'LEFT': self.rect.right,
+                                   'UP': self.rect.bottom,
+                                   'DOWN': self.rect.top
+                                  }
+
+    def rotate_settings(self):
         self.rotate = (self.next_ij[0] - self.way_ij[self.step][0], self.next_ij[1] - self.way_ij[self.step][1])
         self.rotate = rotations[str(self.rotate)]
 
         self.set_condition()
         self.cond = self.condition_rotation[self.rotate]
-
+    def move(self):
         if not self.rotating:
-            self.rect.x += self.delta[0] / 7
-            self.rect.y += self.delta[1] / 7
-
-        if self.rotate == 'RIGHT' or self.rotate == 'DOWN':
-            cond_coords = self.rect.topleft
-        else:
-            cond_coords = self.rect.bottomright
-
-        self.image = self.sprites[self.side_state[self.rotate]]
+            self.rect.x += self.delta[0] // 10
+            self.rect.y += self.delta[1] // 10
+    def check_transition(self):
+        if self.rotate == 'RIGHT':
+            cond_coords = (self.rect.left,self.rect.center[1])
+        elif self.rotate == 'DOWN':
+            cond_coords = (self.rect.center[0],self.rect.top)
+        elif self.rotate == 'UP' or self.rotate == '_UP':
+            cond_coords = (self.rect.center[0], self.rect.bottom)
+        elif self.rotate == 'LEFT':
+            cond_coords = (self.rect.right,self.rect.center[1])
 
         ij_coords = count_ij(cond_coords)
         in_field = ij_coords[0] >= 0 and ij_coords[0] < ROWS and ij_coords[1] >= 0 and ij_coords[1] < COLS
@@ -487,8 +511,8 @@ class Bot(pg.sprite.Sprite):
             self.rect.x = self.next_xy[0]
             self.rect.y = self.next_xy[1]
 
+
             self.old_rotate = self.rotate
-            self.was_rotate = False
 
             self.step += 1
             ij = count_ij((self.rect.x,self.rect.y))
@@ -501,49 +525,36 @@ class Bot(pg.sprite.Sprite):
             self.next_xy = (self.way_xy[self.step+1][0], self.way_xy[self.step+1][1])
             self.next_ij = (self.way_ij[self.step+1][0], self.way_ij[self.step+1][1])
             self.delta = (self.next_xy[0]-self.rect.x ,self.next_xy[1]-self.rect.y)
-        # a = self.count_del_rotation(self, self.rotate,self.old_rotate)
+
+            self.rotate_settings()
+            if self.old_rotate != self.rotate:
+                self.rotating = True
+                self.make_sprites(self.old_rotate, self.rotate)
+
+    def rotate_action(self):
+        old_rect_center = self.rect.center
+        self.image = self.rotation_sprites[self.rotate_step]
+        self.rect = self.image.get_rect()
+        self.rect.center = old_rect_center
+        self.rotate_step += 1
+        if self.rotate_step >= len(self.rotation_sprites):
+            self.rotating = False
+            self.rotate_step = 0
 
 
-    def set_condition(self):
-        self.condition_rotation = {
-                                   'RIGHT':self.rect.left,
-                                   'LEFT': self.rect.right,
-                                   'UP': self.rect.bottom,
-                                   'DOWN': self.rect.top
-                                  }
-    # def rotate_action(self,old_rotate,new_rotate):
-    #     del_rotation = count_coof(self.angles[old_rotate] - self.angles[new_rotate]) * -2
-    #     start_rot = self.angles[old_rotate]
-    #     old_center = self.rect.center
-    #
-    #     list = []
-    #     for i in range(45):
-    #         list.append(pg.transform.rotate(self.image, self.angles[old_rotate] +360))
-    #
-    #     print(list)
-    #
-    #     self.image = list[self.rotate_step]
-    #
-    #     self.rect = self.image.get_rect()
-    #     self.rect.center = old_center
-    #
-    #
-    #
-    #     if old_rotate != new_rotate and self.rotate_step != 44 and not self.was_rotate:
-    #         self.rotating = True
-    #         self.rotate_step += 1
-    #     elif self.rotate_step == 44:
-    #         self.was_rotate = True
-    #         self.image = self.sprites[self.side_state[new_rotate]]
-    #         self.rotating = False
-    #         self.rotate_step = 0
-    #     else:
-    #         self.rotating = False
-    #         self.rotate_step = 0
+    def make_sprites(self, old , new):
+        steps_count = 20
+        gap = (self.angles[new] - self.angles[old]) // steps_count
 
-
-
-
+        if old == 'UP' and new == 'RIGHT':
+            gap = -90 // steps_count
+            old = '_UP'
+        if old == 'RIGHT' and new == 'UP':
+            gap = 90 // steps_count
+            new = '_UP'
+        self.rotation_sprites = []
+        for i in range(self.angles[old] , self.angles[new] + gap , gap):
+            self.rotation_sprites.append(pg.transform.rotate(self.start_img, i))
 
 
 
@@ -551,25 +562,27 @@ class Bot(pg.sprite.Sprite):
 
 # surface, x, y, width, height, color, text, command
 SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45,
-                WIDTH-90-PAD, 45, GREY, 'Save & Exit', save)
+                WIDTH-90-PAD, 45, GREY, 'Save', save)
 ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD,
                 WIDTH-90-PAD, 45, GREY, 'Clear', clear)
 DelwateringBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-135-PAD*2,
                 WIDTH-90-PAD, 45, GREY, 'Clear water', delwatering)
-StartBot = Button(screen, WIDTH-45, 162, 80, 50, (200,200,200), 'Start', start_bot)
 
 
 #SideBar buttons
+
+# x , y , img_name , format , state
 SideBar = pg.Surface((90,HEIGHT))
 SideBar.fill(GREY)
 
-EmptySelect = SelectButton(WIDTH-45,2,'select_empty','.png',0)
+# height = 50
+EmptySelect = SelectButton(WIDTH-45,3,'select_empty','.png',0)
 EmptySelect.select_me()
 
-WallSelect = SelectButton(WIDTH-45,54,'select_wall','.png' ,1)
-WaterSelect = SelectButton(WIDTH-45,108,'select_points','.png',2)
+WallSelect = SelectButton(WIDTH-45,50 + 3 * 2,'select_wall','.png' ,1)
+WaterSelect = SelectButton(WIDTH-45,50 * 2 + 3 * 3,'select_points','.png',2)
 
-
+StartBot = Button(screen, WIDTH-45, 50 * 3 + 3 * 4, 80, 50, (200,200,200), 'Start', start_bot)
 
 
 select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
