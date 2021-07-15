@@ -543,7 +543,7 @@ class Bot(pg.sprite.Sprite):
 
 
     def make_sprites(self, old , new):
-        steps_count = 20
+        steps_count = 14
         gap = (self.angles[new] - self.angles[old]) // steps_count
 
         if old == 'UP' and new == 'RIGHT':
