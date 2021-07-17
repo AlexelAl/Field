@@ -1,70 +1,19 @@
+from easygui import fileopenbox
+from easygui import filesavebox
 import pygame  as pg
 import sys
 import math
 from os import path
+import random
+from set import *
 
-img_dir = path.join(path.dirname(__file__), 'assets')
+from init import *
 
-FPS = 30
+save_file = fileopenbox(default = "C:\Field\saved\*.txt")
 
-ROWS = 10
-COLS = 10
-PAD = 0
+if save_file.find(saved_check) == -1 and save_file.find(saved_check1) == -1:
+    save_file = save_maps + "\save.txt"
 
-# Задаем цвета
-WHITE = (255, 255, 255)
-GREY = (150,150,150)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-WATER_BLUE = (82, 222, 190)
-YELLOW = (255, 255, 0)
-
-BTN_SIZE = 50
-
-MIN_SIZE = (300,300)
-
-WIDTH = BTN_SIZE * ROWS + PAD * ROWS + 90
-HEIGHT =  BTN_SIZE * COLS + PAD * (COLS+1) + 135 + PAD
-if WIDTH < MIN_SIZE[0]:
-    WIDTH = MIN_SIZE[0]
-if HEIGHT < MIN_SIZE[1]:
-    HEIGHT = MIN_SIZE[1]
-CHOOSEN_STATE = 0
-
-way = []
-field = []
-temp_field = []
-old_new_water = []
-new_water = []
-status_clr = [WHITE, BLACK, BLUE, RED]
-border = [[1,0],[-1,0],[0,1],[0,-1]]
-rotations = {
-             '(0, 1)': 'DOWN',
-             '(1, 0)': 'RIGHT',
-             '(-1, 0)': 'LEFT',
-             '(0, -1)': 'UP'
-            }
-
-point_a = [0,0]
-point_b = [ROWS-1, COLS-1]
-
-
-pg.init()
-pg.mixer.init()
-screen = pg.display.set_mode((WIDTH , HEIGHT))
-pg.display.set_caption("Field")
-
-ICON = pg.image.load(path.join(img_dir, "bot.png"))
-ICON.set_colorkey(WHITE)
-pg.display.set_icon(ICON)
-
-all_sprites = pg.sprite.Group()
-button_sprites = pg.sprite.Group()
-cell_sprites = pg.sprite.Group()
-select_sprites = pg.sprite.Group()
-clock = pg.time.Clock()
 
 def CreateField():
     global field, temp_field
@@ -77,9 +26,14 @@ def CreateField():
             field[i].append( cell )
 
     coords = []
-    with open('save.txt' , 'r', encoding="UTF-8") as f:
-        for ex in f.read().split():
-            coords.append(int(ex))
+    with open(str(save_file) , 'r', encoding="UTF-8") as f:
+        try:
+            for ex in f.read().split():
+                coords.append(int(ex))
+        except UnicodeDecodeError:
+            f.close()
+        except PermissionError:
+            f.close()
     f.close()
     c = 0
     for i in range(len(coords)):
@@ -94,6 +48,22 @@ def CreateField():
         temp_field.append([])
         for j in range(COLS):
             temp_field[i].append(TempCell(i,j,field[i][j].status))   # create table of cells and visual objeckts
+
+
+def delete_field():
+    global field, temp_field
+    field = []
+    temp_field = []
+    for i in cell_sprites:
+        i.kill()
+    for i in bot_sprites:
+        i.kill()
+
+def change_file():
+    global save_file
+    delete_field()
+    save_file = fileopenbox(default = "C:\Field\saved\*.txt")
+    CreateField()
 
 def watering(i,j):
     # fill near cells water
@@ -138,7 +108,7 @@ def save():
     #save field to file and exit
 
     global field
-    f = open('save.txt', 'w')
+    f = open(save_file, 'w')
     for i in field:
         for j in i:
             if j.status == 1:
@@ -203,6 +173,7 @@ def start_bot():
 
     bot = Bot(point_a[0],point_a[1], way)
 
+    bot_sprites.add(bot)
     all_sprites.add(bot)   # make bot and it's way
 
 def count_ij(xy):
@@ -220,7 +191,6 @@ def count_coof(x):
         return -1
 
 
-font_name = pg.font.match_font('arial')
 def draw_text(surf, text, size, x, y, color):
     font = pg.font.Font(font_name, size)
     text_surface = font.render(text, True, color)
@@ -398,7 +368,7 @@ class Bot(pg.sprite.Sprite):
     def __init__(self,i,j, way_xy):
         pg.sprite.Sprite.__init__(self)
 
-        self.image = pg.image.load(path.join(img_dir, "bot.png")).convert()
+        self.image = random.choice(BOTS_IMG)
         self.image.set_colorkey(WHITE)
         self.image = pg.transform.scale(self.image,(BTN_SIZE,BTN_SIZE))
 
@@ -418,8 +388,6 @@ class Bot(pg.sprite.Sprite):
         self.way_ij = []
 
         self.step = 0
-
-
 
         for i in self.way_xy:
             self.way_ij.append(i)
@@ -444,11 +412,6 @@ class Bot(pg.sprite.Sprite):
                                    'DOWN': self.rect.top
                                   }
 
-        self.side_state = {'RIGHT' : 1,
-                           'LEFT' : 3,
-                           'UP' : 0,
-                           'DOWN' : 2}
-
         self.angles = { 'UP': 0,
                         'RIGHT': 270,
                         'DOWN': 180,
@@ -456,21 +419,24 @@ class Bot(pg.sprite.Sprite):
                         '_UP': 360
                         }
 
-        self.sprites = (self.image,
-                        pg.transform.rotate(self.image, 270),
-                        pg.transform.rotate(self.image, 180),
-                        pg.transform.rotate(self.image, 90)
-                        )
+        self.sprites = {'UP' : self.image,
+                        'RIGHT' : pg.transform.rotate(self.image, 270),
+                        'DOWN' : pg.transform.rotate(self.image, 180),
+                        'LEFT' : pg.transform.rotate(self.image, 90)
+                        }
         self.rotating = False
         self.rotate_step = 0
 
+
+        self.speedPartOfCell = BOT_SPEED
+        self.rotStepsCount = BOT_ROTATE_SPEED
 
     def update(self,l_click):
         if self.step+2 >= len(self.way_xy):
             self.kill()
             return
         self.rotate_settings()
-        self.image = self.sprites[self.side_state[self.rotate]]
+        self.image = self.sprites[self.rotate]
         self.move()
         if not self.rotating: self.check_transition()
         if self.rotating: self.rotate_action()
@@ -491,8 +457,8 @@ class Bot(pg.sprite.Sprite):
         self.cond = self.condition_rotation[self.rotate]
     def move(self):
         if not self.rotating:
-            self.rect.x += self.delta[0] // 10
-            self.rect.y += self.delta[1] // 10
+            self.rect.x += self.delta[0] // self.speedPartOfCell
+            self.rect.y += self.delta[1] // self.speedPartOfCell
     def check_transition(self):
         if self.rotate == 'RIGHT':
             cond_coords = (self.rect.left,self.rect.center[1])
@@ -543,37 +509,34 @@ class Bot(pg.sprite.Sprite):
 
 
     def make_sprites(self, old , new):
-        steps_count = 14
-        gap = (self.angles[new] - self.angles[old]) // steps_count
+        gap = (self.angles[new] - self.angles[old]) // self.rotStepsCount
 
         if old == 'UP' and new == 'RIGHT':
-            gap = -90 // steps_count
+            gap = -90 // self.rotStepsCount
             old = '_UP'
         if old == 'RIGHT' and new == 'UP':
-            gap = 90 // steps_count
+            gap = 90 // self.rotStepsCount
             new = '_UP'
         self.rotation_sprites = []
         for i in range(self.angles[old] , self.angles[new] + gap , gap):
             self.rotation_sprites.append(pg.transform.rotate(self.start_img, i))
 
 
+SideBar = pg.Surface((90,HEIGHT))
+SideBar.fill(GREY)
 
 #BottomBar buttons
 
 # surface, x, y, width, height, color, text, command
-SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45,
+SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90 - PAD,
                 WIDTH-90-PAD, 45, GREY, 'Save', save)
-ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90-PAD,
+ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45,
                 WIDTH-90-PAD, 45, GREY, 'Clear', clear)
-DelwateringBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-135-PAD*2,
-                WIDTH-90-PAD, 45, GREY, 'Clear water', delwatering)
 
 
 #SideBar buttons
 
 # x , y , img_name , format , state
-SideBar = pg.Surface((90,HEIGHT))
-SideBar.fill(GREY)
 
 # height = 50
 EmptySelect = SelectButton(WIDTH-45,3,'select_empty','.png',0)
@@ -583,7 +546,7 @@ WallSelect = SelectButton(WIDTH-45,50 + 3 * 2,'select_wall','.png' ,1)
 WaterSelect = SelectButton(WIDTH-45,50 * 2 + 3 * 3,'select_points','.png',2)
 
 StartBot = Button(screen, WIDTH-45, 50 * 3 + 3 * 4, 80, 50, (200,200,200), 'Start', start_bot)
-
+ChangefFile = Button(screen,WIDTH-45, 50 * 4 + 3 * 5, 80, 50, (200,200,200), 'Change', change_file)
 
 select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
 select_cap_img.set_colorkey(WHITE)
@@ -591,9 +554,6 @@ select_cap_x = EmptySelect.rect.x
 select_cap_y = EmptySelect.rect.y
 
 CreateField()
-
-
-
 
 
 # Цикл игры
