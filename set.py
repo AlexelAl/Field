@@ -3,6 +3,7 @@ from os import path
 img_dir = path.join(path.dirname(__file__), 'assets')
 save_maps = path.join(path.dirname(__file__), 'saved')
 
+
 FPS = 30
 
 BTN_SIZE = 40
@@ -21,6 +22,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+DARK_BLUE = (0,0,155)
 WATER_BLUE = (82, 222, 190)
 YELLOW = (255, 255, 0)
 
@@ -57,3 +59,8 @@ point_b = [ROWS-1, COLS-1]
 
 saved_check = "saved"
 saved_check1 = "Field"
+
+save_file = save_maps + "\save.txt"
+
+
+waiting = True

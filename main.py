@@ -5,14 +5,9 @@ import sys
 import math
 from os import path
 import random
+
 from set import *
-
 from init import *
-
-save_file = fileopenbox(default = "C:\Field\saved\*.txt")
-
-if save_file.find(saved_check) == -1 and save_file.find(saved_check1) == -1:
-    save_file = save_maps + "\save.txt"
 
 
 def CreateField():
@@ -48,8 +43,6 @@ def CreateField():
         temp_field.append([])
         for j in range(COLS):
             temp_field[i].append(TempCell(i,j,field[i][j].status))   # create table of cells and visual objeckts
-
-
 def delete_field():
     global field, temp_field
     field = []
@@ -59,11 +52,40 @@ def delete_field():
     for i in bot_sprites:
         i.kill()
 
+
+def open_file():
+    path_save = ""
+
+    path_save = fileopenbox(default = "C:\Field\saved\*.txt")
+    if path_save == "." or (path_save.find(saved_check) == -1 and save_file.find(saved_check1) == -1):
+        path_save = save_file
+    return path_save   # return path to choosen file
 def change_file():
     global save_file
-    delete_field()
-    save_file = fileopenbox(default = "C:\Field\saved\*.txt")
-    CreateField()
+
+    new_save = open_file()
+    if save_file != new_save:
+        save_file = new_save
+        delete_field()
+        CreateField()   # change choosen file
+def create_file():
+    global save_file
+    try:
+        save_file = filesavebox(default = "C:\Field\saved\*.txt") + ".txt"
+        f = open(save_file, "w")
+        f.close()
+        delete_field()
+        CreateField()
+    except TypeError:
+        pass
+
+
+def edit():
+    close_start_screen()
+    pg.display.set_caption("Edit")
+def run():
+    close_start_screen()
+    pg.display.set_caption("Run")
 
 def watering(i,j):
     # fill near cells water
@@ -89,8 +111,6 @@ def watering(i,j):
             new_water.append((newi,newj))
 
             currCell.status = 2   # fill near cells by water
-
-
 def water_logic():
 
     global field, new_water, old_new_water
@@ -101,7 +121,17 @@ def water_logic():
 
     for i in old_new_water:
         watering(i[0], i[1])   # fill field with function "watering"
-
+def delwatering():
+    #   delete  water
+    for i in cell_sprites:
+        if i.status == 2 or i.status == 3:
+            i.fill(0)
+            i.resetWay()
+    for i in temp_field:
+        for j in i:
+            if j.status == 2 or j.status == 3:
+                j.status == 0
+                j.resetWay()  # clear all water cells
 
 
 def save():
@@ -116,8 +146,7 @@ def save():
                 f.write(" ")
                 f.write(str(j.j))
                 f.write(" ")
-    f.close()
-
+    f.close()   # save field to save_file
 def clear():
     for i in cell_sprites:
         i.fill(0)
@@ -125,18 +154,6 @@ def clear():
         for j in i:
             j.status = 0
             j.resetWay()  # fill the field with empty cells
-
-def delwatering():
-    #   delete  water
-    for i in cell_sprites:
-        if i.status == 2 or i.status == 3:
-            i.fill(0)
-            i.resetWay()
-    for i in temp_field:
-        for j in i:
-            if j.status == 2 or j.status == 3:
-                j.status == 0
-                j.resetWay()  # clear all water cells
 
 def start_bot():
     global temp_field, point_a, point_b
@@ -190,7 +207,6 @@ def count_coof(x):
     else:
         return -1
 
-
 def draw_text(surf, text, size, x, y, color):
     font = pg.font.Font(font_name, size)
     text_surface = font.render(text, True, color)
@@ -198,24 +214,55 @@ def draw_text(surf, text, size, x, y, color):
     text_rect.midtop = (x, y)
     surf.blit(text_surface, text_rect)
 
+def start_screen():
+    global waiting
+    screen.blit(BACKGROUND, (0,0))
 
+    editor_mode = Button(screen,WIDTH//4, HEIGHT//2 - 40, WIDTH//6,
+                         80, BLUE , "Edit", 30, edit, YELLOW,DARK_BLUE)
+    run_mode = Button(screen,WIDTH-WIDTH//4, HEIGHT//2 - 40, WIDTH//6,
+                      80, BLUE , "Run",30, run, YELLOW,DARK_BLUE)
+
+    waiting_sprites.add(editor_mode)
+    waiting_sprites.add(run_mode)
+    pg.display.flip()
+
+    waiting = True
+    while waiting:
+        l_click = False
+        clock.tick(FPS)
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pg.quit()
+                sys.exit()
+            if event.type == pg.MOUSEBUTTONUP:
+                l_click = True
+        screen.blit(BACKGROUND, (0,0))
+        waiting_sprites.update(l_click)
+        waiting_sprites.draw(screen)
+        pg.display.flip()
+
+def close_start_screen():
+    global waiting
+    waiting = False
 
 class Button(pg.sprite.Sprite):
-    def __init__(self, surface, x, y, w, h, color, text, command):
+    def __init__(self, surface, x, y, w, h, color, text, text_size,
+                 command, text_color = BLACK, pressed_clr = WHITE):
         pg.sprite.Sprite.__init__(self)
         self.color = color
         self.command = command
         self.text = text
+        self.text_size = text_size
         self.image = pg.Surface((w, h))
         self.image.fill(self.color)
         self.rect = self.image.get_rect()
         self.coords = (x, y)
         self.rect.midtop = self.coords
+        self.text_color = text_color
+        self.pressed_clr = pressed_clr
 
         draw_text(self.image, text, 26, w//2, 5, BLACK)
-
-        all_sprites.add(self)
-        button_sprites.add(self)
 
     def update(self,l_click):
         pressed = pg.mouse.get_pressed()
@@ -227,8 +274,9 @@ class Button(pg.sprite.Sprite):
         if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()):
             self.rect.x += 2
             self.rect.y += 2
-            self.image.fill(WHITE)
-        draw_text(self.image, self.text, 26, self.rect.width//2, 5, BLACK)
+            self.image.fill(self.pressed_clr)
+        draw_text(self.image, self.text, self.text_size , self.rect.width//2,
+                  self.rect.height//2 - self.text_size, self.text_color)
 
 class SelectButton(pg.sprite.Sprite):
     def __init__(self,x,y,img_name,format,state):
@@ -527,13 +575,17 @@ SideBar.fill(GREY)
 
 #BottomBar buttons
 
-# surface, x, y, width, height, color, text, command
+# surface, x, y, width, height, color, text, text_size , command
 SaveBut = Button(screen, (WIDTH-90-PAD)//2, HEIGHT-90 - PAD,
-                WIDTH-90-PAD, 45, GREY, 'Save', save)
+                WIDTH-90-PAD, 45, GREY, 'Save', 26, save)
 ClrBut =  Button(screen, (WIDTH-90-PAD)//2, HEIGHT-45,
-                WIDTH-90-PAD, 45, GREY, 'Clear', clear)
+                WIDTH-90-PAD, 45, GREY, 'Clear', 26, clear)
 
+all_sprites.add(SaveBut)
+button_sprites.add(SaveBut)
 
+all_sprites.add(ClrBut)
+button_sprites.add(ClrBut)
 #SideBar buttons
 
 # x , y , img_name , format , state
@@ -545,14 +597,25 @@ EmptySelect.select_me()
 WallSelect = SelectButton(WIDTH-45,50 + 3 * 2,'select_wall','.png' ,1)
 WaterSelect = SelectButton(WIDTH-45,50 * 2 + 3 * 3,'select_points','.png',2)
 
-StartBot = Button(screen, WIDTH-45, 50 * 3 + 3 * 4, 80, 50, (200,200,200), 'Start', start_bot)
-ChangefFile = Button(screen,WIDTH-45, 50 * 4 + 3 * 5, 80, 50, (200,200,200), 'Change', change_file)
+StartBot = Button(screen, WIDTH-45, 50 * 3 + 3 * 4, 80, 50, (200,200,200), 'Start',26, start_bot)
+ChangefFile = Button(screen,WIDTH-45, 50 * 4 + 3 * 5, 80, 50, (200,200,200), 'Change',26, change_file)
+NewFile = Button(screen,WIDTH-45, 50 * 5 + 3 * 6, 80, 50, (200,200,200), 'New file',26, create_file)
+
+all_sprites.add(StartBot)
+button_sprites.add(StartBot)
+
+all_sprites.add(ChangefFile)
+button_sprites.add(ChangefFile)
+
+all_sprites.add(NewFile)
+button_sprites.add(NewFile)
 
 select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
 select_cap_img.set_colorkey(WHITE)
 select_cap_x = EmptySelect.rect.x
 select_cap_y = EmptySelect.rect.y
 
+start_screen()
 CreateField()
 
 
@@ -572,6 +635,9 @@ while running:
             l_click = True
             for i in cell_sprites:
                 i.click_indx = False
+            pos = pg.mouse.get_pos()
+            if pos[0] > WIDTH or pos[0] < 0 or pos[1] > HEIGHT or pos[1] < 0:
+                l_click = False
         if event.type == pg.MOUSEBUTTONUP and event.button == 3:
             r_click = True
         if event.type == pg.MOUSEBUTTONUP and event.button == 3 and CHOOSEN_STATE == 2:

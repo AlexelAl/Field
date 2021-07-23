@@ -15,8 +15,12 @@ button_sprites = pg.sprite.Group()
 cell_sprites = pg.sprite.Group()
 select_sprites = pg.sprite.Group()
 bot_sprites = pg.sprite.Group()
+waiting_sprites = pg.sprite.Group()
+
 clock = pg.time.Clock()
 
 BOTS_IMG = [pg.image.load(path.join(img_dir, "tank01.png")).convert(),
             pg.image.load(path.join(img_dir, "bot.png")).convert()]
+BACKGROUND = pg.image.load(path.join(img_dir, "background.jpeg")).convert()
+BACKGROUND = pg.transform.scale(BACKGROUND,(WIDTH,HEIGHT))
 font_name = pg.font.match_font('arial')
