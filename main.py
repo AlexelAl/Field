@@ -218,9 +218,9 @@ def start_screen():
     global waiting
     screen.blit(BACKGROUND, (0,0))
 
-    editor_mode = Button(screen,WIDTH//4, HEIGHT//2 - 40, WIDTH//6,
+    editor_mode = Button(screen,WIDTH//4, HEIGHT//2 - 40, WIDTH//4,
                          80, BLUE , "Edit", 30, edit, YELLOW,DARK_BLUE)
-    run_mode = Button(screen,WIDTH-WIDTH//4, HEIGHT//2 - 40, WIDTH//6,
+    run_mode = Button(screen,WIDTH-WIDTH//4, HEIGHT//2 - 40, WIDTH//4,
                       80, BLUE , "Run",30, run, YELLOW,DARK_BLUE)
 
     waiting_sprites.add(editor_mode)
@@ -235,7 +235,7 @@ def start_screen():
             if event.type == pg.QUIT:
                 pg.quit()
                 sys.exit()
-            if event.type == pg.MOUSEBUTTONUP:
+            if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                 l_click = True
         screen.blit(BACKGROUND, (0,0))
         waiting_sprites.update(l_click)
@@ -600,6 +600,7 @@ WaterSelect = SelectButton(WIDTH-45,50 * 2 + 3 * 3,'select_points','.png',2)
 StartBot = Button(screen, WIDTH-45, 50 * 3 + 3 * 4, 80, 50, (200,200,200), 'Start',26, start_bot)
 ChangefFile = Button(screen,WIDTH-45, 50 * 4 + 3 * 5, 80, 50, (200,200,200), 'Change',26, change_file)
 NewFile = Button(screen,WIDTH-45, 50 * 5 + 3 * 6, 80, 50, (200,200,200), 'New file',26, create_file)
+Back = Button(screen,WIDTH-45, 50 * 6 + 3 * 7,80,50, (200,200,200), 'Back',26, start_screen)
 
 all_sprites.add(StartBot)
 button_sprites.add(StartBot)
@@ -609,6 +610,9 @@ button_sprites.add(ChangefFile)
 
 all_sprites.add(NewFile)
 button_sprites.add(NewFile)
+
+all_sprites.add(Back)
+button_sprites.add(Back)
 
 select_cap_img = pg.image.load(path.join(img_dir, "select_highlight.png")).convert()
 select_cap_img.set_colorkey(WHITE)
