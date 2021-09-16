@@ -51,7 +51,7 @@ def delete_field():
         i.kill()
     for i in bot_sprites:
         i.kill()
-
+    delwatering()
 
 def open_file():
     path_save = ""
@@ -245,6 +245,13 @@ def start_screen():
 def close_start_screen():
     global waiting
     waiting = False
+    for i in waiting_sprites:
+        i.kill()
+    CreateField()
+def return_start_screen():
+    delete_field()
+    start_screen()
+
 
 class Button(pg.sprite.Sprite):
     def __init__(self, surface, x, y, w, h, color, text, text_size,
@@ -296,7 +303,7 @@ class SelectButton(pg.sprite.Sprite):
         select_sprites.add(self)
 
     def update(self,l_click):
-        global select_cap_x,select_cap_y
+        global select_cap_x,select_cap_y, CHOOSEN_STATE
 
         if self.selected:
             select_cap_x =  self.rect.x
@@ -304,11 +311,23 @@ class SelectButton(pg.sprite.Sprite):
 
         self.image = self.unpressed_img
         pressed = pg.mouse.get_pressed()
+        keystate = pg.key.get_pressed()
+
         if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()):
             self.image = self.pressed_img
             if self.selected:
                 select_cap_x =  self.rect.x + 2
                 select_cap_y = self.rect.y + 2
+
+        if keystate[pg.K_1]:
+            CHOOSEN_STATE = 0
+        elif keystate[pg.K_2]:
+            CHOOSEN_STATE = 1
+        elif keystate[pg.K_3]:
+            CHOOSEN_STATE = 2
+        if self.state == CHOOSEN_STATE:
+            self.unselect_all()
+            self.select_me()
 
         if l_click and self.rect.collidepoint(pg.mouse.get_pos()):
             self.select_me()
@@ -324,16 +343,14 @@ class SelectButton(pg.sprite.Sprite):
             i.selected = False
 
 class Cell(pg.sprite.Sprite):
-    # Можно упростить конструктор, передвая только i, j
-    # А x, y рассчитывать уже тут. Один фиг по формуле рассчитываешь
+
     def __init__(self, surface, status, x, y, i, j):
         pg.sprite.Sprite.__init__(self)
 
-        # Мне кажется можно оставить просто слово status мы же и так в Cell ---Можно, но сеll_status
-        self.status = status                            # 0 - empty        Часто упоминается,и много менять !!!!!!!!!!!!!!!!!!!!!!
-        self.image = pg.Surface((BTN_SIZE,BTN_SIZE))    # 1 - wall         Тут самое время познакомится с удобствами среды разработки)
-        self.image.fill(status_clr[self.status])        # 2 - watering        Жми контрол ф, появится две строки - файнд и реплэйс.
-        self.rect = self.image.get_rect()               # 3 - way marker     в файнд - ЧТО нужно заменить, в реплайс НА ЧТО заменить)
+        self.status = status                            # 0 - empty
+        self.image = pg.Surface((BTN_SIZE,BTN_SIZE))    # 1 - wall
+        self.image.fill(status_clr[self.status])        # 2 - watering        
+        self.rect = self.image.get_rect()               # 3 - way marker
         self.rect.x = x                                 # 4 - endpoint
         self.rect.y = y
         self.i = i
@@ -368,13 +385,9 @@ class Cell(pg.sprite.Sprite):
 
         pressed = pg.mouse.get_pressed()
         if pressed[0] and self.rect.collidepoint(pg.mouse.get_pos()) and not self.click_indx and not CHOOSEN_STATE==2:
-            # Эммм, кажется ниже есть метод для этого) ----Тебе кажется----
+
             delwatering()
             self.on_click(l_click,r_click)
-            # if self.status == 2:
-            #     new_water.append((self.i,self.j))
-            #     self.setParent(self.i,self.j)
-            #     self.setStep(0)
 
         else:
             self.image.fill(status_clr[self.status])
@@ -600,7 +613,7 @@ WaterSelect = SelectButton(WIDTH-45,50 * 2 + 3 * 3,'select_points','.png',2)
 StartBot = Button(screen, WIDTH-45, 50 * 3 + 3 * 4, 80, 50, (200,200,200), 'Start',26, start_bot)
 ChangefFile = Button(screen,WIDTH-45, 50 * 4 + 3 * 5, 80, 50, (200,200,200), 'Change',26, change_file)
 NewFile = Button(screen,WIDTH-45, 50 * 5 + 3 * 6, 80, 50, (200,200,200), 'New file',26, create_file)
-Back = Button(screen,WIDTH-45, 50 * 6 + 3 * 7,80,50, (200,200,200), 'Back',26, start_screen)
+Back = Button(screen,WIDTH-45, 50 * 6 + 3 * 7,80,50, (200,200,200), 'Back',26, return_start_screen)
 
 all_sprites.add(StartBot)
 button_sprites.add(StartBot)
@@ -620,7 +633,7 @@ select_cap_x = EmptySelect.rect.x
 select_cap_y = EmptySelect.rect.y
 
 start_screen()
-CreateField()
+
 
 
 # Цикл игры
